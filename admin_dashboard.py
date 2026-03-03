@@ -33,8 +33,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 3. PAUTAN DATA (Telah Dibaiki ke format CSV)
-SHEET_REPORT_URL = "https://docs.google.com/spreadsheets/d/1WB76n71wxMT3i5ZCaoCBIyb888il-qBydY8OEgC81Q8/export?format=csv"
-SHEET_EQUIP_URL = "https://docs.google.com/spreadsheets/d/1QeQgEA--b1TX3Q8LPgmog7XP97Tg0dHSr3gIAAGXV4g/export?format=csv" 
+SHEET_REPORT_URL = "https://docs.google.com/spreadsheets/d/1WB76n71wxMT3i5ZCaoCBIyb888il-qBydY8OEgC81Q8/edit?resourcekey=&gid=296214979#gid=296214979"
+SHEET_EQUIP_URL = "https://docs.google.com/spreadsheets/d/1QeQgEA--b1TX3Q8LPgmog7XP97Tg0dHSr3gIAAGXV4g/edit?gid=416421947#gid=416421947" 
 
 PDF_COL = "UPLOAD REPORT" 
 
@@ -190,3 +190,4 @@ if not df_raw.empty:
     with c_bar:
         fig2 = px.histogram(df_raw, x='REPORT CHECKLIST', color='STATUS', title='Kekerapan Laporan mengikut Jenis')
         st.plotly_chart(fig2, use_container_width=True)
+
