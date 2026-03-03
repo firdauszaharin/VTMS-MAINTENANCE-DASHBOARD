@@ -95,8 +95,11 @@ with st.sidebar:
     st.link_button("📂 Open Drive Folder", "https://drive.google.com/drive/folders/1lG9eKZ69hpT6q-aqXpNxyd0HMcXdr3A4jUaXLCpDpOPffFzG0XK-MGBLaGHcBMcyqWjyLy", use_container_width=True)
 
 # 6. EXECUTIVE SUMMARY
-st.title("📊 VTMS LPJ/PTP Management Dashboard")
-
+st.markdown("""
+    <h1 style='font-family: Segoe UI, sans-serif; color: #0984E3; font-size: 42px; font-weight: bold; text-align: left;'>
+        📊 VTMS LPJ/PTP Management Dashboard
+    </h1>
+""", unsafe_allow_html=True)
 if not df_equip.empty:
     month_cols = [c for c in df_equip.columns if any(yr in c for yr in ["2025", "2026"])]
     latest_month = month_cols[-1] if month_cols else None
@@ -237,4 +240,5 @@ with tab2:
                 df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
 
             st.dataframe(df_eq_show.style.map(lambda x: 'background-color: #D4EDDA' if x=='OK' else ('background-color: #F8D7DA' if x=='MISSING' else ('background-color: #FFF3CD' if x=='FAULTY' else '')), subset=[selected_month]), use_container_width=True, hide_index=True)
+
 
