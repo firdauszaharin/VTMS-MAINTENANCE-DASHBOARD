@@ -92,9 +92,9 @@ with st.sidebar:
     search_staff = st.text_input("👤 Staff Name:")
     
     st.divider()
-    st.link_button("📂 Open Drive Folder", "https://drive.google.com/drive/folders/1lG9eKZ69hpT6q-aqXpNxyd0HMcXdr3A4rAjUaXLCpDpOPffFzG0XK-MGBLaGHcBMcyqWjyLy", use_container_width=True)
+    st.link_button("📂 Open Drive Folder", "https://drive.google.com/drive/folders/1lG9eKZ69hpT6q-aqXpNxyd0HMcXdr3A4jUaXLCpDpOPffFzG0XK-MGBLaGHcBMcyqWjyLy", use_container_width=True)
 
-# 6. EXECUTIVE SUMMARY (NEW TOP PANEL)
+# 6. EXECUTIVE SUMMARY
 st.title("📊 VTMS LPJ/PTP Management Dashboard")
 
 if not df_equip.empty:
@@ -103,15 +103,23 @@ if not df_equip.empty:
     
     if latest_month:
         status_check = df_equip[latest_month].astype(str).str.strip().str.upper()
-        faulty_count = len(df_equip[status_check.isin(['FAULTY', 'MISSING'])])
+        faulty_data = df_equip[status_check.isin(['FAULTY', 'MISSING'])]
         
-        if faulty_count > 0:
+        if len(faulty_data) > 0:
             st.markdown(f"""
             <div class="alert-box">
-                <h4 style="margin:0; color:#FF4B4B;">⚠️ SYSTEM ALERT: {faulty_count} ISSUES DETECTED</h4>
+                <h4 style="margin:0; color:#FF4B4B;">⚠️ SYSTEM ALERT: {len(faulty_data)} ISSUES DETECTED</h4>
                 <p style="margin:5px 0 0 0;">Immediate attention required for assets marked as FAULTY or MISSING in {latest_month}.</p>
             </div>
             """, unsafe_allow_html=True)
+            
+            # Button to download only faulty items
+            st.download_button(
+                label="📥 Download Faulty Assets List (CSV)",
+                data=faulty_data.to_csv(index=False).encode('utf-8'),
+                file_name=f'Faulty_Assets_{latest_month}.csv',
+                mime='text/csv',
+            )
 
 # 7. MAIN CONTENT TABS
 tab1, tab2 = st.tabs(["📝 Maintenance Reports", "⚙️ Equipment Status"])
@@ -127,7 +135,6 @@ with tab1:
         time_col = next((c for c in df.columns if any(x in c.lower() for x in ['timestamp', 'time', 'date', 'tarikh'])), None)
         display_df = df.sort_values(by=time_col, ascending=False).reset_index(drop=True) if time_col else df.reset_index(drop=True)
         
-        # Metrics & Analytics
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("Total Reports", len(display_df))
         m2.metric("Approved ✅", len(display_df[display_df['STATUS'] == 'APPROVED']) if 'STATUS' in display_df.columns else 0)
@@ -145,10 +152,20 @@ with tab1:
 
         st.divider()
         st.subheader("📋 Submitted Reports Record")
+        
+        # Color highlighting for REJECTED status
+        def highlight_status(val):
+            if val == 'REJECTED': return 'background-color: #F8D7DA; color: #721C24;'
+            if val == 'APPROVED': return 'background-color: #D4EDDA; color: #155724;'
+            return ''
+
         if 'REPORT CHECKLIST' in display_df.columns:
             display_df.insert(0, 'ICON', display_df['REPORT CHECKLIST'].map(icon_map).fillna("https://cdn-icons-png.flaticon.com/512/2991/2991108.png"))
 
-        event = st.dataframe(display_df, use_container_width=True, hide_index=True,
+        # Apply style to the STATUS column
+        styled_df = display_df.style.map(highlight_status, subset=['STATUS']) if 'STATUS' in display_df.columns else display_df
+
+        event = st.dataframe(styled_df, use_container_width=True, hide_index=True,
                             column_config={
                                 "ICON": st.column_config.ImageColumn("Type"), 
                                 PDF_COL: st.column_config.LinkColumn("Report File", display_text="OPEN PDF 📄")
