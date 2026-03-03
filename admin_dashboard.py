@@ -36,7 +36,7 @@ def local_css():
         /* PDF Container */
         .pdf-view-container { 
             border: 2px solid #0984E3; border-radius: 12px; overflow: hidden; 
-            margin-top: 20px; background-color: #f1f2f6; 
+            margin-top: 10px; background-color: #f1f2f6; 
         }
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
@@ -44,7 +44,7 @@ def local_css():
         </style>
     """, unsafe_allow_html=True)
 
-# 3. SISTEM LOGIN (KEKAL LOGIN & ENTER KEY)
+# 3. SISTEM LOGIN
 def check_admin_password():
     local_css()
     if "admin_auth" not in st.session_state:
@@ -77,8 +77,6 @@ if not check_admin_password():
 
 # --- 4. DATA LOADING ---
 SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSEHHkyeSHjGBSi3wp-T5eE0vCZtgZ2mpWmUktMZiUHqfvb9Aow1r8OK_ZTq9wCQrxg62xTUX2DpgS_/pub?gid=296214979&single=true&output=csv"
-
-# NAMA KOLUM PDF (Pastikan ejaan sama seperti di Google Sheets)
 PDF_COL = "UPLOAD REPORT" 
 
 @st.cache_data(ttl=60)
@@ -94,9 +92,14 @@ def load_data(url):
 
 df_raw = load_data(SHEET_URL)
 if df_raw.empty:
+    st.warning("Tiada data ditemui dalam Google Sheets.")
     st.stop()
 
-df = df_raw.copy()
+# Initialize Session States
+if "selected_row_idx" not in st.session_state:
+    st.session_state.selected_row_idx = None
+if "prev_filter_state" not in st.session_state:
+    st.session_state.prev_filter_state = ""
 
 # --- 5. SIDEBAR NAVIGATION & FILTER ---
 with st.sidebar:
@@ -106,19 +109,26 @@ with st.sidebar:
     st.markdown("### 🔍 TAPISAN DATA")
     
     # Filter Tahun
-    tahun_list = sorted(df['Tahun'].unique(), reverse=True)
-    sel_tahun = st.selectbox("📅 Pilih Tahun:", ["Semua Tahun"] + list(tahun_list))
+    tahun_list = sorted(df_raw['Tahun'].dropna().unique(), reverse=True)
+    sel_tahun = st.selectbox("📅 Pilih Tahun:", ["Semua Tahun"] + [int(t) for t in tahun_list])
     
     # Carian Report & Staff
     search_report = st.text_input("🔎 Cari Jenis Report:", placeholder="MET, SERVER, etc...")
     search_staff = st.text_input("👤 Cari Nama Staff:", placeholder="Nama staff...")
     
+    # Reset preview jika filter berubah
+    current_filter = f"{sel_tahun}{search_report}{search_staff}"
+    if current_filter != st.session_state.prev_filter_state:
+        st.session_state.selected_row_idx = None
+        st.session_state.prev_filter_state = current_filter
+
     st.divider()
     if st.button("🔒 LOGOUT"):
         st.session_state["admin_auth"] = False
         st.rerun()
 
-# Logik Penapisan
+# --- LOGIK PENAPISAN ---
+df = df_raw.copy()
 if sel_tahun != "Semua Tahun":
     df = df[df['Tahun'] == sel_tahun]
 if search_report:
@@ -126,34 +136,31 @@ if search_report:
 if search_staff:
     df = df[df['Name'].str.contains(search_staff, case=False, na=False)]
 
+# Urutkan mengikut masa terbaru
+display_df = df.sort_values(by="Timestamp", ascending=False).reset_index(drop=True)
+
 # --- 6. MAIN DASHBOARD ---
 st.title("📊 VTMS Management Dashboard")
-st.write(f"Tahun: **{sel_tahun}** | Masa: **{waktu_msia.strftime('%d/%m/%Y %H:%M')}**")
+st.write(f"Paparan: **{sel_tahun}** | Masa: **{waktu_msia.strftime('%d/%m/%Y %H:%M')}**")
 
 st.divider()
 
 # Metrics Row
 m1, m2, m3, m4 = st.columns(4)
-m1.metric("Laporan", len(df))
-m2.metric("Approved ✅", len(df[df['STATUS'] == 'APPROVED']) if 'STATUS' in df.columns else 0)
-m3.metric("Rejected ❌", len(df[df['STATUS'] == 'REJECTED']) if 'STATUS' in df.columns else 0)
-m4.metric("Staff", df['Name'].nunique() if 'Name' in df.columns else 0)
+m1.metric("Jumlah Laporan", len(display_df))
+m2.metric("Approved ✅", len(display_df[display_df['STATUS'] == 'APPROVED']) if 'STATUS' in display_df.columns else 0)
+m3.metric("Rejected ❌", len(display_df[display_df['STATUS'] == 'REJECTED']) if 'STATUS' in display_df.columns else 0)
+m4.metric("Jumlah Staff", display_df['Name'].nunique() if 'Name' in display_df.columns else 0)
 
 # --- 7. JADUAL INTERAKTIF ---
-st.write("##")
-st.subheader("📋 Rekod Laporan (Klik baris untuk Preview PDF)")
+st.subheader("📋 Rekod Laporan")
+st.info("💡 Klik pada mana-mana baris di bawah untuk melihat preview fail PDF secara automatik.")
 
-# Konfigurasi Link Kolum
-column_config = {}
-if PDF_COL in df.columns:
-    column_config[PDF_COL] = st.column_config.LinkColumn(
-        "Fail Report",
-        display_text="Buka PDF 📄"
-    )
+column_config = {
+    PDF_COL: st.column_config.LinkColumn("Fail Report", display_text="Buka Link 🔗")
+}
 
-display_df = df.sort_values(by="Timestamp", ascending=False)
-
-# Render Jadual
+# Render Jadual dengan Pemilihan Baris
 event = st.dataframe(
     display_df,
     use_container_width=True,
@@ -163,56 +170,64 @@ event = st.dataframe(
     selection_mode="single-row"
 )
 
-# --- 8. PDF PREVIEW LOGIK ---
+# Kemaskini index baris yang dipilih
 if len(event.selection.rows) > 0:
-    row_idx = event.selection.rows[0]
-    selected_data = display_df.iloc[row_idx]
-    
-    if PDF_COL in selected_data and isinstance(selected_data[PDF_COL], str):
-        link = selected_data[PDF_COL]
-        if "drive.google.com" in link:
-            st.markdown("---")
-            st.subheader(f"📄 Preview: {selected_data.get('REPORT CHECKLIST', 'Laporan')}")
-            
-            # Ekstrak ID Drive secara selamat
+    st.session_state.selected_row_idx = event.selection.rows[0]
+
+# --- 8. PDF PREVIEW LOGIK ---
+if st.session_state.selected_row_idx is not None:
+    idx = st.session_state.selected_row_idx
+    if idx < len(display_df):
+        row = display_df.iloc[idx]
+        link = row.get(PDF_COL, "")
+        
+        st.markdown("---")
+        c_title, c_close = st.columns([0.9, 0.1])
+        with c_title:
+            st.subheader(f"📄 Preview: {row.get('REPORT CHECKLIST', 'Laporan')}")
+        with c_close:
+            if st.button("❌ Close"):
+                st.session_state.selected_row_idx = None
+                st.rerun()
+
+        if isinstance(link, str) and "drive.google.com" in link:
             match = re.search(r'[-\w]{25,}', link)
             if match:
                 file_id = match.group()
-                pdf_preview_url = f"https://drive.google.com/file/d/{file_id}/preview"
+                preview_url = f"https://drive.google.com/file/d/{file_id}/preview"
                 
-                # Paparan Preview
                 st.markdown(f'''
                     <div class="pdf-view-container">
-                        <iframe src="{pdf_preview_url}" width="100%" height="800px" allow="autoplay; encrypted-media"></iframe>
+                        <iframe src="{preview_url}" width="100%" height="700px" allow="autoplay"></iframe>
                     </div>
                 ''', unsafe_allow_html=True)
-                
-                # Butang Backup
-                st.link_button("📥 Klik Sini Jika Preview Tidak Keluar", link)
+                st.link_button("📥 Muat Turun / Buka Tab Baru", link)
             else:
-                st.warning("⚠️ ID Fail tidak dapat dikenal pasti.")
+                st.error("Format pautan Google Drive tidak sah.")
         else:
-            st.info("ℹ️ Tiada pautan fail Google Drive.")
+            st.warning("Tiada pautan PDF yang sah untuk baris ini.")
 
 # --- 9. GRAF ANALITIK ---
 st.divider()
-c1, c2 = st.columns([1, 1.5])
+col_graph1, col_graph2 = st.columns(2)
 
-with c1:
-    if 'STATUS' in df.columns:
-        fig_pie = px.pie(df, names='STATUS', title='Pecahan Status', hole=0.4, 
-                         color_discrete_sequence=px.colors.qualitative.Pastel)
+with col_graph1:
+    if 'STATUS' in display_df.columns and not display_df.empty:
+        fig_pie = px.pie(display_df, names='STATUS', title='Statistik Status Kelulusan', hole=0.4)
         st.plotly_chart(fig_pie, use_container_width=True)
 
-with c2:
-    if 'REPORT CHECKLIST' in df.columns:
-        report_counts = df['REPORT CHECKLIST'].value_counts().reset_index()
-        report_counts.columns = ['Jenis', 'Bil']
-        fig_bar = px.bar(report_counts, x='Jenis', y='Bil', title='Jumlah Jenis Laporan',
-                         color='Jenis', text='Bil')
+with col_graph2:
+    if 'REPORT CHECKLIST' in display_df.columns and not display_df.empty:
+        counts = display_df['REPORT CHECKLIST'].value_counts().reset_index()
+        counts.columns = ['Jenis', 'Bil']
+        fig_bar = px.bar(counts, x='Jenis', y='Bil', title='Kekerapan Laporan', color='Jenis')
         st.plotly_chart(fig_bar, use_container_width=True)
 
 # --- 10. DOWNLOAD DATA ---
-st.divider()
-csv = df.to_csv(index=False).encode('utf-8')
-st.download_button("📥 Download Report (CSV)", data=csv, file_name=f"VTMS_Data_{sel_tahun}.csv", mime="text/csv")
+csv = display_df.to_csv(index=False).encode('utf-8')
+st.download_button(
+    label="📥 Download Data Paparan Ini (CSV)",
+    data=csv,
+    file_name=f"VTMS_Export_{datetime.now().strftime('%Y%m%d')}.csv",
+    mime="text/csv"
+)
