@@ -113,7 +113,6 @@ if not df_equip.empty:
             </div>
             """, unsafe_allow_html=True)
             
-            # Button to download only faulty items
             st.download_button(
                 label="📥 Download Faulty Assets List (CSV)",
                 data=faulty_data.to_csv(index=False).encode('utf-8'),
@@ -153,7 +152,6 @@ with tab1:
         st.divider()
         st.subheader("📋 Submitted Reports Record")
         
-        # Color highlighting for REJECTED status
         def highlight_status(val):
             if val == 'REJECTED': return 'background-color: #F8D7DA; color: #721C24;'
             if val == 'APPROVED': return 'background-color: #D4EDDA; color: #155724;'
@@ -162,7 +160,6 @@ with tab1:
         if 'REPORT CHECKLIST' in display_df.columns:
             display_df.insert(0, 'ICON', display_df['REPORT CHECKLIST'].map(icon_map).fillna("https://cdn-icons-png.flaticon.com/512/2991/2991108.png"))
 
-        # Apply style to the STATUS column
         styled_df = display_df.style.map(highlight_status, subset=['STATUS']) if 'STATUS' in display_df.columns else display_df
 
         event = st.dataframe(styled_df, use_container_width=True, hide_index=True,
@@ -182,8 +179,6 @@ with tab1:
             if isinstance(link, str) and "drive.google.com" in link:
                 file_id = re.search(r'[-\w]{25,}', link).group()
                 st.markdown(f'<div class="pdf-view-container"><iframe src="https://drive.google.com/file/d/{file_id}/preview" width="100%" height="600px"></iframe></div>', unsafe_allow_html=True)
-    else:
-        st.error("Failed to load Report data.")
 
 # --- TAB 2: EQUIPMENT STATUS ---
 with tab2:
@@ -208,22 +203,21 @@ with tab2:
             me3.metric(f"Missing ❌", len(df_equip[status_series == 'MISSING']))
 
             st.markdown(f"### 🎯 Equipment Performance Overview ({selected_month})")
-col_left, col_right = st.columns(2)
+            
+            # SUSUNAN DONUT DAN HISTOGRAM
+            col_left, col_right = st.columns(2)
+            
+            with col_left:
+                fig_donut = px.pie(
+                    df_pie, 
+                    names=selected_month, 
+                    title='Condition Overview',
+                    hole=0.5, 
+                    color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}
+                )
+                fig_donut.update_traces(textposition='inside', textinfo='percent+label')
+                st.plotly_chart(fig_donut, use_container_width=True)
 
-with col_left:
-    # Menggunakan hole=0.5 untuk kesan Donut
-    fig_donut = px.pie(
-        df_pie, 
-        names=selected_month, 
-        title='Condition Overview',
-        hole=0.5, 
-        color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}
-    )
-    
-    # Menambah label peratusan di tengah (opsional tapi nampak pro)
-    fig_donut.update_traces(textposition='inside', textinfo='percent+label')
-    
-    st.plotly_chart(fig_donut, use_container_width=True)
             with col_right:
                 if 'Site' in df_pie.columns:
                     st.plotly_chart(px.histogram(df_pie, x='Site', color=selected_month, barmode='group', title='Status by Location',
@@ -243,4 +237,3 @@ with col_left:
                 df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
 
             st.dataframe(df_eq_show.style.map(lambda x: 'background-color: #D4EDDA' if x=='OK' else ('background-color: #F8D7DA' if x=='MISSING' else ('background-color: #FFF3CD' if x=='FAULTY' else '')), subset=[selected_month]), use_container_width=True, hide_index=True)
-
