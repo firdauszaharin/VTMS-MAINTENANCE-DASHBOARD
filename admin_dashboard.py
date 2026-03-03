@@ -31,29 +31,29 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. PAUTAN DATA (TELAH DIBAIKI KE FORMAT EXPORT CSV)
-# Laporan Harian (GID 296214979)
+# 3. PAUTAN DATA (FORMAT CSV)
+# Laporan Harian
 SHEET_REPORT_URL = "https://docs.google.com/spreadsheets/d/1WB76n71wxMT3i5ZCaoCBIyb888il-qBydY8OEgC81Q8/export?format=csv&gid=296214979"
-# Status Equipment (GID 416421947)
+# Status Equipment
 SHEET_EQUIP_URL = "https://docs.google.com/spreadsheets/d/1QeQgEA--b1TX3Q8LPgmog7XP97Tg0dHSr3gIAAGXV4g/export?format=csv&gid=416421947"
 
 PDF_COL = "UPLOAD REPORT" 
 
-# 4. FUNGSI LOAD DATA (DIPERTINGKATKAN)
+# 4. FUNGSI LOAD DATA
 @st.cache_data(ttl=60)
 def load_data(url):
     try:
         data = pd.read_csv(url, on_bad_lines='skip')
-        data.columns = data.columns.str.strip() # Buang space pada tajuk
+        data.columns = data.columns.str.strip()
         
-        # Logik kesan kolum masa secara automatik (elakkan KeyError 'Tahun')
+        # Kesan kolum masa secara automatik
         time_col = next((c for c in data.columns if any(x in c.lower() for x in ['timestamp', 'time', 'date', 'tarikh'])), None)
         
         if time_col:
             data[time_col] = pd.to_datetime(data[time_col], errors='coerce')
             data['Tahun'] = data[time_col].dt.year
         else:
-            data['Tahun'] = None # Cipta kolum kosong jika tiada kolum masa
+            data['Tahun'] = None
             
         return data
     except Exception as e:
@@ -80,8 +80,7 @@ with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/1063/1063376.png", width=70)
     st.divider()
     
-    st.markdown("### 🔍 TAPISAN")
-    # Semakan selamat untuk df_raw
+    st.markdown("### 🔍 TAPISAN LAPORAN")
     if not df_raw.empty and 'Tahun' in df_raw.columns:
         tahun_list = sorted(df_raw['Tahun'].dropna().unique(), reverse=True)
         sel_tahun = st.selectbox("📅 Pilih Tahun:", ["Semua Tahun"] + [int(t) for t in tahun_list])
@@ -104,179 +103,98 @@ tab1, tab2 = st.tabs(["📝 Laporan Harian", "⚙️ Status Equipment"])
 with tab1:
     if not df_raw.empty:
         df = df_raw.copy()
-        # Filter Tahun
-        if sel_tahun != "Semua Tahun" and 'Tahun' in df.columns: 
-            df = df[df['Tahun'] == sel_tahun]
+        if sel_tahun != "Semua Tahun": df = df[df['Tahun'] == sel_tahun]
+        if search_report: df = df[df['REPORT CHECKLIST'].str.contains(search_report, case=False, na=False)]
+        if search_staff: df = df[df['Name'].str.contains(search_staff, case=False, na=False)]
         
-        # Filter Search
-        if search_report and 'REPORT CHECKLIST' in df.columns: 
-            df = df[df['REPORT CHECKLIST'].str.contains(search_report, case=False, na=False)]
-        if search_staff and 'Name' in df.columns: 
-            df = df[df['Name'].str.contains(search_staff, case=False, na=False)]
+        time_col = next((c for c in df.columns if any(x in c.lower() for x in ['timestamp', 'time', 'date', 'tarikh'])), None)
+        display_df = df.sort_values(by=time_col, ascending=False).reset_index(drop=True) if time_col else df.reset_index(drop=True)
         
-        # Urus paparan
-        if not df.empty:
-            # Gunakan kolum masa yang dikesan tadi untuk sorting
-            time_col = next((c for c in df.columns if any(x in c.lower() for x in ['timestamp', 'time', 'date', 'tarikh'])), None)
-            display_df = df.sort_values(by=time_col, ascending=False).reset_index(drop=True) if time_col else df.reset_index(drop=True)
-            
-            if 'REPORT CHECKLIST' in display_df.columns:
-                display_df.insert(0, 'ICON', display_df['REPORT CHECKLIST'].map(icon_map).fillna("https://cdn-icons-png.flaticon.com/512/2991/2991108.png"))
+        if 'REPORT CHECKLIST' in display_df.columns:
+            display_df.insert(0, 'ICON', display_df['REPORT CHECKLIST'].map(icon_map).fillna("https://cdn-icons-png.flaticon.com/512/2991/2991108.png"))
 
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Jumlah Laporan", len(display_df))
-            m2.metric("Approved ✅", len(display_df[display_df['STATUS'] == 'APPROVED']) if 'STATUS' in display_df.columns else 0)
-            m3.metric("Rejected ❌", len(display_df[display_df['STATUS'] == 'REJECTED']) if 'STATUS' in display_df.columns else 0)
-            m4.metric("Jumlah Staff", display_df['Name'].nunique() if 'Name' in display_df.columns else 0)
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Jumlah Laporan", len(display_df))
+        m2.metric("Approved ✅", len(display_df[display_df['STATUS'] == 'APPROVED']) if 'STATUS' in display_df.columns else 0)
+        m3.metric("Rejected ❌", len(display_df[display_df['STATUS'] == 'REJECTED']) if 'STATUS' in display_df.columns else 0)
+        m4.metric("Jumlah Staff", display_df['Name'].nunique() if 'Name' in display_df.columns else 0)
 
-            def style_status_val(val):
-                if val == 'REJECTED': return 'color: red; font-weight: bold;'
-                if val == 'APPROVED': return 'color: green; font-weight: bold;'
-                return ''
+        st.subheader("📋 Rekod Laporan")
+        event = st.dataframe(display_df, use_container_width=True, hide_index=True,
+                            column_config={"ICON": st.column_config.ImageColumn("Type"), PDF_COL: st.column_config.LinkColumn("Fail Report")},
+                            on_select="rerun", selection_mode="single-row")
 
-            st.subheader("📋 Rekod Laporan")
-            event = st.dataframe(
-                display_df.style.map(style_status_val, subset=['STATUS'] if 'STATUS' in display_df.columns else []),
-                use_container_width=True,
-                column_config={
-                    "ICON": st.column_config.ImageColumn("Type", width="small"),
-                    PDF_COL: st.column_config.LinkColumn("Fail Report", display_text="BUKA PDF 📄")
-                },
-                on_select="rerun",
-                selection_mode="single-row",
-                hide_index=True
-            )
+        if len(event.selection.rows) > 0:
+            st.session_state.selected_row_idx = event.selection.rows[0]
 
-            if len(event.selection.rows) > 0:
-                st.session_state.selected_row_idx = event.selection.rows[0]
-
-            if st.session_state.selected_row_idx is not None:
-                idx = st.session_state.selected_row_idx
-                if idx < len(display_df):
-                    row = display_df.iloc[idx]
-                    link = row.get(PDF_COL, "")
-                    st.markdown("---")
-                    c1, c2 = st.columns([0.9, 0.1])
-                    c1.subheader(f"📄 Preview: {row.get('REPORT CHECKLIST', 'Report')}")
-                    if c2.button("❌ Tutup"):
-                        st.session_state.selected_row_idx = None
-                        st.rerun()
-                    
-                    if isinstance(link, str) and "drive.google.com" in link:
-                        match = re.search(r'[-\w]{25,}', link)
-                        if match:
-                            file_id = match.group()
-                            st.markdown(f'<div class="pdf-view-container"><iframe src="https://drive.google.com/file/d/{file_id}/preview" width="100%" height="800px"></iframe></div>', unsafe_allow_html=True)
-        else:
-            st.warning("Tiada data ditemui untuk tapisan tersebut.")
+        if st.session_state.selected_row_idx is not None:
+            idx = st.session_state.selected_row_idx
+            row = display_df.iloc[idx]
+            link = row.get(PDF_COL, "")
+            st.markdown("---")
+            if isinstance(link, str) and "drive.google.com" in link:
+                file_id = re.search(r'[-\w]{25,}', link).group()
+                st.markdown(f'<iframe src="https://drive.google.com/file/d/{file_id}/preview" width="100%" height="600px"></iframe>', unsafe_allow_html=True)
     else:
-        st.error("Data Laporan gagal dimuatkan. Pastikan link CSV betul dan akses dibuka kepada 'Anyone with the link'.")
+        st.error("Data Laporan gagal dimuatkan.")
 
 # --- TAB 2: STATUS EQUIPMENT ---
 with tab2:
     if not df_equip.empty:
         st.subheader("⚙️ Inventory & Status Semasa Peralatan")
         
-        # 1. MANAGE TAHUN & BULAN
-        # Kita tapis kolum yang mempunyai format "BULAN TAHUN" (cth: SEPT 2025)
-        all_cols = df_equip.columns.tolist()
-        month_cols = [c for c in all_cols if any(yr in c for yr in ["2025", "2026"])]
+        # Filter Kolum Bulan
+        month_cols = [c for c in df_equip.columns if any(yr in c for yr in ["2025", "2026"])]
         
-        c1, c2 = st.columns([0.3, 0.7])
-        with c1:
-            # Pilihan Bulan & Tahun di sini
-            selected_month = st.selectbox("📅 Pilih Tempoh Laporan:", month_cols, index=len(month_cols)-1)
+        c_sel1, c_sel2 = st.columns([0.4, 0.6])
+        with c_sel1:
+            selected_month = st.selectbox("📅 Pilih Bulan Laporan:", month_cols, index=len(month_cols)-1)
         
         st.divider()
 
-        # 2. RINGKASAN METRIC (Berdasarkan bulan dipilih)
         if selected_month in df_equip.columns:
-            m_eq1, m_eq2, m_eq3 = st.columns(3)
+            # Versi Selamat: astype(str) mengelakkan AttributeError
+            status_series = df_equip[selected_month].astype(str).str.strip().str.upper()
             
-            # Kira status
-            count_ok = len(df_equip[df_equip[selected_month].str.strip() == 'OK'])
-            count_faulty = len(df_equip[df_equip[selected_month].str.strip() == 'FAULTY'])
-            count_missing = len(df_equip[df_equip[selected_month].str.strip() == 'MISSING'])
-            
-            m_eq1.metric(f"Equipment OK ({selected_month})", count_ok)
-            m_eq2.metric(f"Faulty ⚠️", count_faulty, delta_color="inverse")
-            m_eq3.metric(f"Missing ❌", count_missing, delta_color="inverse")
+            me1, me2, me3 = st.columns(3)
+            me1.metric(f"Equipment OK", len(df_equip[status_series == 'OK']))
+            me2.metric(f"Faulty ⚠️", len(df_equip[status_series == 'FAULTY']))
+            me3.metric(f"Missing ❌", len(df_equip[status_series == 'MISSING']))
 
-            # 3. CARIAN & JADUAL
-            search_eq = st.text_input("🔍 Cari Alat (SN, Nama, Site, IP):", key="search_eq")
-            
-            # Pilih kolum yang penting sahaja untuk dipaparkan + bulan yang dipilih
-            essential_cols = ["Site", "Type", "Serial No", "IP Address"]
-            # Pastikan kolum wujud sebelum pilih
-            display_cols = [c for c in essential_cols if c in df_equip.columns] + [selected_month]
-            
-            df_eq_show = df_equip[display_cols].copy()
+            search_eq = st.text_input("🔍 Cari Alat (SN, Nama, Site):", key="search_eq_tab")
+            essential_cols = ["Site", "Type", "Serial No", "IP Address", selected_month]
+            df_eq_show = df_equip[[c for c in essential_cols if c in df_equip.columns]].copy()
             
             if search_eq:
                 df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
 
-            def style_equip_val(val):
-                if val == 'OK': return 'background-color: #D4EDDA; color: #155724'
-                if val == 'FAULTY': return 'background-color: #FFF3CD; color: #856404'
-                if val == 'MISSING': return 'background-color: #F8D7DA; color: #721C24'
-                return ''
-
-            st.dataframe(
-                df_eq_show.style.map(style_equip_val, subset=[selected_month]),
-                use_container_width=True,
-                hide_index=True
-            )
-        else:
-            st.error(f"Kolum {selected_month} tidak ditemui dalam data.")
+            st.dataframe(df_eq_show.style.map(lambda x: 'background-color: #D4EDDA' if x=='OK' else ('background-color: #F8D7DA' if x=='MISSING' else ''), subset=[selected_month]), use_container_width=True, hide_index=True)
     else:
         st.error("Data Equipment gagal dimuatkan.")
 
-# GRAF ANALITIK
+# 7. GRAF ANALITIK (DINAMIK)
 st.divider()
 st.subheader("📊 Analitik Ringkas")
-
-# Tab untuk pilih Analitik Laporan atau Analitik Peralatan
 tab_a1, tab_a2 = st.tabs(["Analitik Laporan", "Analitik Peralatan"])
 
 with tab_a1:
     if not df_raw.empty:
-        c_pie, c_bar = st.columns(2)
-        with c_pie:
-            if 'STATUS' in df_raw.columns:
-                fig1 = px.pie(df_raw, names='STATUS', title='Statistik Kelulusan Laporan', hole=0.4,
-                             color_discrete_map={'APPROVED':'#2ecc71', 'REJECTED':'#e74c3c'})
-                st.plotly_chart(fig1, use_container_width=True)
-        with c_bar:
-            if 'REPORT CHECKLIST' in df_raw.columns:
-                fig2 = px.histogram(df_raw, x='REPORT CHECKLIST', color='STATUS' if 'STATUS' in df_raw.columns else None, 
-                                   title='Kekerapan Laporan mengikut Jenis')
-                st.plotly_chart(fig2, use_container_width=True)
-    else:
-        st.info("Tiada data laporan untuk dianalisis.")
+        col_p, col_b = st.columns(2)
+        with col_p:
+            st.plotly_chart(px.pie(df_raw, names='STATUS', title='Statistik Kelulusan', hole=0.4), use_container_width=True)
+        with col_b:
+            st.plotly_chart(px.histogram(df_raw, x='REPORT CHECKLIST', color='STATUS', title='Kekerapan Laporan'), use_container_width=True)
 
 with tab_a2:
     if not df_equip.empty:
-        # Gunakan kolum status yang dikesan secara automatik tadi
-        cols = df_equip.columns.tolist()
-        status_col = next((c for c in cols if "2025" in c or "2026" in c), cols[-1])
+        col_p2, col_b2 = st.columns(2)
+        # Guna bulan yang dipilih di Tab 2
+        df_pie = df_equip.copy()
+        df_pie[selected_month] = df_pie[selected_month].astype(str).str.strip().str.upper()
         
-        c_pie_eq, c_bar_eq = st.columns(2)
-        
-        with c_pie_eq:
-            # Carta Pai Status Peralatan
-            fig_eq1 = px.pie(df_equip, names=status_col, title=f'Ringkasan Status Peralatan ({status_col})',
-                            color_discrete_map={'OK':'#2ecc71', 'FAULTY':'#f1c40f', 'MISSING':'#e74c3c'})
-            st.plotly_chart(fig_eq1, use_container_width=True)
-            
-        with c_bar_eq:
-            # Carta Bar Status mengikut Site (PTP / LPJ)
-            if 'Site' in df_equip.columns:
-                fig_eq2 = px.histogram(df_equip, x='Site', color=status_col, barmode='group',
-                                      title='Status Peralatan mengikut Lokasi')
-                st.plotly_chart(fig_eq2, use_container_width=True)
-            else:
-                st.warning("Kolum 'Site' tidak ditemui untuk analitik lokasi.")
-    else:
-        st.info("Tiada data peralatan untuk dianalisis.")
-
-
+        with col_p2:
+            st.plotly_chart(px.pie(df_pie, names=selected_month, title=f'Status Keseluruhan ({selected_month})',
+                                  color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}), use_container_width=True)
+        with col_b2:
+            if 'Site' in df_pie.columns:
+                st.plotly_chart(px.histogram(df_pie, x='Site', color=selected_month, barmode='group', title='Status mengikut Lokasi'), use_container_width=True)
