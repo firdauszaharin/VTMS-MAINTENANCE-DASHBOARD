@@ -36,7 +36,7 @@ st.markdown("""
 # URL Laporan Harian
 SHEET_REPORT_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSEHHkyeSHjGBSi3wp-T5eE0vCZtgZ2mpWmUktMZiUHqfvb9Aow1r8OK_ZTq9wCQrxg62xTUX2DpgS_/pub?gid=296214979&single=true&output=csv"
 # URL Status Equipment (Pastikan anda 'Publish to Web' tab Status Equipment sebagai CSV)
-SHEET_EQUIP_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTEO7Y6fG17Pz-H-4YwYfP_X_mO8XG_h6L-m_C8X-X8L/pub?gid=1364531835&single=true&output=csv" 
+SHEET_EQUIP_URL = "https://docs.google.com/spreadsheets/d/1d_HsOZEmS3k-615N3R0WlOaDJrc4AFFI/edit?usp=sharing&ouid=105327475718177684283&rtpof=true&sd=true" 
 
 PDF_COL = "UPLOAD REPORT" 
 
@@ -200,3 +200,4 @@ with c_bar:
     if not df_raw.empty:
         fig2 = px.histogram(df_raw, x='REPORT CHECKLIST', color='STATUS', title='Kekerapan Laporan mengikut Jenis')
         st.plotly_chart(fig2, use_container_width=True)
+
