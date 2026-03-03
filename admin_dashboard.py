@@ -4,6 +4,7 @@ import plotly.express as px
 from datetime import datetime
 import pytz
 import re
+import os  # Added missing import
 
 # 1. PAGE CONFIGURATION
 st.set_page_config(
@@ -32,9 +33,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 3. DATA LINKS (CSV FORMAT)
-# Daily Report
 SHEET_REPORT_URL = "https://docs.google.com/spreadsheets/d/1WB76n71wxMT3i5ZCaoCBIyb888il-qBydY8OEgC81Q8/export?format=csv&gid=296214979"
-# Equipment Status
 SHEET_EQUIP_URL = "https://docs.google.com/spreadsheets/d/1QeQgEA--b1TX3Q8LPgmog7XP97Tg0dHSr3gIAAGXV4g/export?format=csv&gid=416421947"
 
 PDF_COL = "UPLOAD REPORT" 
@@ -77,8 +76,12 @@ if "selected_row_idx" not in st.session_state:
 # 5. SIDEBAR
 with st.sidebar:
     st.markdown("## 🛡️ VTMS ADMIN")
+    
+    # Check for logo - Optimized to show a default if file is missing
     if os.path.exists("logo.png"):
         st.image("logo.png", use_container_width=True)
+    else:
+        st.info("Upload 'logo.png' to GitHub to see your brand logo here.")
     
     st.divider()
     
@@ -147,8 +150,6 @@ with tab1:
 with tab2:
     if not df_equip.empty:
         st.subheader("⚙️ Inventory & Current Equipment Status")
-        
-        # Filter Month Columns
         month_cols = [c for c in df_equip.columns if any(yr in c for yr in ["2025", "2026"])]
         
         c_sel1, c_sel2 = st.columns([0.4, 0.6])
@@ -158,7 +159,6 @@ with tab2:
         st.divider()
 
         if selected_month in df_equip.columns:
-            # Safe Version: astype(str) prevents AttributeError
             status_series = df_equip[selected_month].astype(str).str.strip().str.upper()
             
             me1, me2, me3 = st.columns(3)
@@ -174,8 +174,6 @@ with tab2:
                 df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
 
             st.dataframe(df_eq_show.style.map(lambda x: 'background-color: #D4EDDA' if x=='OK' else ('background-color: #F8D7DA' if x=='MISSING' else ('background-color: #FFF3CD' if x=='FAULTY' else '')), subset=[selected_month]), use_container_width=True, hide_index=True)
-    else:
-        st.error("Failed to load Equipment data.")
 
 # 7. ANALYTICS CHARTS (DYNAMIC)
 st.divider()
@@ -186,14 +184,13 @@ with tab_a1:
     if not df_raw.empty:
         col_p, col_b = st.columns(2)
         with col_p:
-            st.plotly_chart(px.pie(df_raw, names='STATUS', title='Approval Status Distribution', hole=0.4), use_container_width=True)
+            st.plotly_chart(px.pie(df_raw, names='STATUS', title='Approval Status Distribution', hole=0.4, color_discrete_map={'APPROVED':'#2ecc71', 'REJECTED':'#e74c3c'}), use_container_width=True)
         with col_b:
             st.plotly_chart(px.histogram(df_raw, x='REPORT CHECKLIST', color='STATUS', title='Report Frequency by Type'), use_container_width=True)
 
 with tab_a2:
     if not df_equip.empty:
         col_p2, col_b2 = st.columns(2)
-        # Use month selected in Tab 2
         df_pie = df_equip.copy()
         df_pie[selected_month] = df_pie[selected_month].astype(str).str.strip().str.upper()
         
@@ -203,4 +200,3 @@ with tab_a2:
         with col_b2:
             if 'Site' in df_pie.columns:
                 st.plotly_chart(px.histogram(df_pie, x='Site', color=selected_month, barmode='group', title='Equipment Status by Location'), use_container_width=True)
-
