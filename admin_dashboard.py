@@ -207,15 +207,50 @@ with tab2:
         st.error("Data Equipment gagal dimuatkan. Sila semak akses 'Share' pada Google Sheets.")
 
 # GRAF ANALITIK
-if not df_raw.empty:
-    st.divider()
-    st.subheader("📊 Analitik Ringkas")
-    c_pie, c_bar = st.columns(2)
-    with c_pie:
-        if 'STATUS' in df_raw.columns:
-            fig1 = px.pie(df_raw, names='STATUS', title='Statistik Kelulusan Laporan', hole=0.4)
-            st.plotly_chart(fig1, use_container_width=True)
-    with c_bar:
-        if 'REPORT CHECKLIST' in df_raw.columns:
-            fig2 = px.histogram(df_raw, x='REPORT CHECKLIST', color='STATUS' if 'STATUS' in df_raw.columns else None, title='Kekerapan Laporan')
-            st.plotly_chart(fig2, use_container_width=True)
+st.divider()
+st.subheader("📊 Analitik Ringkas")
+
+# Tab untuk pilih Analitik Laporan atau Analitik Peralatan
+tab_a1, tab_a2 = st.tabs(["Analitik Laporan", "Analitik Peralatan"])
+
+with tab_a1:
+    if not df_raw.empty:
+        c_pie, c_bar = st.columns(2)
+        with c_pie:
+            if 'STATUS' in df_raw.columns:
+                fig1 = px.pie(df_raw, names='STATUS', title='Statistik Kelulusan Laporan', hole=0.4,
+                             color_discrete_map={'APPROVED':'#2ecc71', 'REJECTED':'#e74c3c'})
+                st.plotly_chart(fig1, use_container_width=True)
+        with c_bar:
+            if 'REPORT CHECKLIST' in df_raw.columns:
+                fig2 = px.histogram(df_raw, x='REPORT CHECKLIST', color='STATUS' if 'STATUS' in df_raw.columns else None, 
+                                   title='Kekerapan Laporan mengikut Jenis')
+                st.plotly_chart(fig2, use_container_width=True)
+    else:
+        st.info("Tiada data laporan untuk dianalisis.")
+
+with tab_a2:
+    if not df_equip.empty:
+        # Gunakan kolum status yang dikesan secara automatik tadi
+        cols = df_equip.columns.tolist()
+        status_col = next((c for c in cols if "2025" in c or "2026" in c), cols[-1])
+        
+        c_pie_eq, c_bar_eq = st.columns(2)
+        
+        with c_pie_eq:
+            # Carta Pai Status Peralatan
+            fig_eq1 = px.pie(df_equip, names=status_col, title=f'Ringkasan Status Peralatan ({status_col})',
+                            color_discrete_map={'OK':'#2ecc71', 'FAULTY':'#f1c40f', 'MISSING':'#e74c3c'})
+            st.plotly_chart(fig_eq1, use_container_width=True)
+            
+        with c_bar_eq:
+            # Carta Bar Status mengikut Site (PTP / LPJ)
+            if 'Site' in df_equip.columns:
+                fig_eq2 = px.histogram(df_equip, x='Site', color=status_col, barmode='group',
+                                      title='Status Peralatan mengikut Lokasi')
+                st.plotly_chart(fig_eq2, use_container_width=True)
+            else:
+                st.warning("Kolum 'Site' tidak ditemui untuk analitik lokasi.")
+    else:
+        st.info("Tiada data peralatan untuk dianalisis.")
+
