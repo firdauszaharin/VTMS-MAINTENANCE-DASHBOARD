@@ -177,34 +177,59 @@ with tab2:
     if not df_equip.empty:
         st.subheader("⚙️ Inventory & Status Semasa Peralatan")
         
-        cols = df_equip.columns.tolist()
-        status_col = next((c for c in cols if "2025" in c or "2026" in c), cols[-1])
+        # 1. MANAGE TAHUN & BULAN
+        # Kita tapis kolum yang mempunyai format "BULAN TAHUN" (cth: SEPT 2025)
+        all_cols = df_equip.columns.tolist()
+        month_cols = [c for c in all_cols if any(yr in c for yr in ["2025", "2026"])]
         
-        st.info(f"Status berdasarkan kolum: **{status_col}**")
+        c1, c2 = st.columns([0.3, 0.7])
+        with c1:
+            # Pilihan Bulan & Tahun di sini
+            selected_month = st.selectbox("📅 Pilih Tempoh Laporan:", month_cols, index=len(month_cols)-1)
+        
+        st.divider()
 
-        e1, e2, e3 = st.columns(3)
-        e1.metric("Equipment OK", len(df_equip[df_equip[status_col] == 'OK']) if status_col in df_equip.columns else 0)
-        e2.metric("Faulty ⚠️", len(df_equip[df_equip[status_col] == 'FAULTY']) if status_col in df_equip.columns else 0)
-        e3.metric("Missing ❌", len(df_equip[df_equip[status_col] == 'MISSING']) if status_col in df_equip.columns else 0)
+        # 2. RINGKASAN METRIC (Berdasarkan bulan dipilih)
+        if selected_month in df_equip.columns:
+            m_eq1, m_eq2, m_eq3 = st.columns(3)
+            
+            # Kira status
+            count_ok = len(df_equip[df_equip[selected_month].str.strip() == 'OK'])
+            count_faulty = len(df_equip[df_equip[selected_month].str.strip() == 'FAULTY'])
+            count_missing = len(df_equip[df_equip[selected_month].str.strip() == 'MISSING'])
+            
+            m_eq1.metric(f"Equipment OK ({selected_month})", count_ok)
+            m_eq2.metric(f"Faulty ⚠️", count_faulty, delta_color="inverse")
+            m_eq3.metric(f"Missing ❌", count_missing, delta_color="inverse")
 
-        search_eq = st.text_input("🔍 Cari Alat (SN, Nama, Site, IP):", placeholder="Contoh: SGH atau PTP...")
-        df_eq_show = df_equip.copy()
-        if search_eq:
-            df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
+            # 3. CARIAN & JADUAL
+            search_eq = st.text_input("🔍 Cari Alat (SN, Nama, Site, IP):", key="search_eq")
+            
+            # Pilih kolum yang penting sahaja untuk dipaparkan + bulan yang dipilih
+            essential_cols = ["Site", "Type", "Serial No", "IP Address"]
+            # Pastikan kolum wujud sebelum pilih
+            display_cols = [c for c in essential_cols if c in df_equip.columns] + [selected_month]
+            
+            df_eq_show = df_equip[display_cols].copy()
+            
+            if search_eq:
+                df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
 
-        def style_equip_val(val):
-            if val == 'OK': return 'background-color: #D4EDDA; color: #155724'
-            if val == 'FAULTY': return 'background-color: #FFF3CD; color: #856404'
-            if val == 'MISSING': return 'background-color: #F8D7DA; color: #721C24'
-            return ''
+            def style_equip_val(val):
+                if val == 'OK': return 'background-color: #D4EDDA; color: #155724'
+                if val == 'FAULTY': return 'background-color: #FFF3CD; color: #856404'
+                if val == 'MISSING': return 'background-color: #F8D7DA; color: #721C24'
+                return ''
 
-        st.dataframe(
-            df_eq_show.style.map(style_equip_val, subset=[status_col] if status_col in df_eq_show.columns else []),
-            use_container_width=True,
-            hide_index=True
-        )
+            st.dataframe(
+                df_eq_show.style.map(style_equip_val, subset=[selected_month]),
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.error(f"Kolum {selected_month} tidak ditemui dalam data.")
     else:
-        st.error("Data Equipment gagal dimuatkan. Sila semak akses 'Share' pada Google Sheets.")
+        st.error("Data Equipment gagal dimuatkan.")
 
 # GRAF ANALITIK
 st.divider()
@@ -253,4 +278,5 @@ with tab_a2:
                 st.warning("Kolum 'Site' tidak ditemui untuk analitik lokasi.")
     else:
         st.info("Tiada data peralatan untuk dianalisis.")
+
 
