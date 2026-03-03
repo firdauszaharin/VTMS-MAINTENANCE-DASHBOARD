@@ -34,7 +34,7 @@ st.markdown("""
 
 # 3. PAUTAN DATA
 # URL Laporan Harian (CSV)
-SHEET_REPORT_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSEHHkyeSHjGBSi3wp-T5eE0vCZtgZ2mpWmUktMZiUHqfvb9Aow1r8OK_ZTq9wCQrxg62xTUX2DpgS_/pub?gid=296214979&single=true&output=csv"
+SHEET_REPORT_URL = "https://docs.google.com/spreadsheets/d/1QeQgEA--b1TX3Q8LPgmog7XP97Tg0dHSr3gIAAGXV4g/edit?usp=drive_link"
 
 # NOTA: Sila pastikan anda "Publish to Web" sebagai CSV untuk link di bawah:
 # Link di bawah telah ditukar kepada format export CSV
@@ -204,3 +204,4 @@ if not df_raw.empty:
     with c_bar:
         fig2 = px.histogram(df_raw, x='REPORT CHECKLIST', color='STATUS', title='Kekerapan Laporan mengikut Jenis')
         st.plotly_chart(fig2, use_container_width=True)
+
