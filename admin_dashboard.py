@@ -13,10 +13,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- LOGO SETTINGS ---
-# Replace the URL below with your actual EDM Logo URL (e.g., from Imgur, Dropbox, or your website)
-EDM_LOGO_URL = "https://cdn-icons-png.flaticon.com/512/1063/1063376.png" 
-
 # --- SET MALAYSIA TIMEZONE ---
 msia_tz = pytz.timezone('Asia/Kuala_Lumpur')
 waktu_msia = datetime.now(msia_tz)
@@ -36,8 +32,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 3. DATA LINKS (CSV FORMAT)
+# Daily Report
 SHEET_REPORT_URL = "https://docs.google.com/spreadsheets/d/1WB76n71wxMT3i5ZCaoCBIyb888il-qBydY8OEgC81Q8/export?format=csv&gid=296214979"
+# Equipment Status
 SHEET_EQUIP_URL = "https://docs.google.com/spreadsheets/d/1QeQgEA--b1TX3Q8LPgmog7XP97Tg0dHSr3gIAAGXV4g/export?format=csv&gid=416421947"
+
 PDF_COL = "UPLOAD REPORT" 
 
 # 4. DATA LOAD FUNCTION
@@ -46,12 +45,16 @@ def load_data(url):
     try:
         data = pd.read_csv(url, on_bad_lines='skip')
         data.columns = data.columns.str.strip()
+        
+        # Auto-detect time column
         time_col = next((c for c in data.columns if any(x in c.lower() for x in ['timestamp', 'time', 'date', 'tarikh'])), None)
+        
         if time_col:
             data[time_col] = pd.to_datetime(data[time_col], errors='coerce')
             data['Year'] = data[time_col].dt.year
         else:
             data['Year'] = None
+            
         return data
     except Exception as e:
         return pd.DataFrame()
@@ -73,9 +76,8 @@ if "selected_row_idx" not in st.session_state:
 
 # 5. SIDEBAR
 with st.sidebar:
-    # --- EDM LOGO DISPLAY ---
-    st.image(EDM_LOGO_URL, width=120)
-    st.markdown("## 🛡️ EDM VTMS ADMIN")
+    st.markdown("## 🛡️ VTMS ADMIN")
+    st.image("https://cdn-icons-png.flaticon.com/512/1063/1063376.png", width=70)
     st.divider()
     
     st.markdown("### 🔍 REPORT FILTERS")
@@ -92,12 +94,8 @@ with st.sidebar:
     folder_url = "https://drive.google.com/drive/folders/1lG9eKZ69hpT6q-aqXpNxyd0HMcXdr3A4rAjUaXLCpDpOPffFzG0XK-MGBLaGHcBMcyqWjyLy"
     st.link_button("📂 Open Drive Folder", folder_url, use_container_width=True)
 
-# 6. MAIN CONTENT HEADER
-col_title, col_logo = st.columns([0.8, 0.2])
-with col_title:
-    st.title("📊 VTMS LPJ/PTP Management Dashboard")
-with col_logo:
-    st.image(EDM_LOGO_URL, width=80) # Logo also appears in the top right
+# 6. MAIN CONTENT
+st.title("📊 VTMS LPJ/PTP Management Dashboard")
 
 tab1, tab2 = st.tabs(["📝 Maintenance Reports", "⚙️ Equipment Status"])
 
@@ -147,6 +145,8 @@ with tab1:
 with tab2:
     if not df_equip.empty:
         st.subheader("⚙️ Inventory & Current Equipment Status")
+        
+        # Filter Month Columns
         month_cols = [c for c in df_equip.columns if any(yr in c for yr in ["2025", "2026"])]
         
         c_sel1, c_sel2 = st.columns([0.4, 0.6])
@@ -156,7 +156,9 @@ with tab2:
         st.divider()
 
         if selected_month in df_equip.columns:
+            # Safe Version: astype(str) prevents AttributeError
             status_series = df_equip[selected_month].astype(str).str.strip().str.upper()
+            
             me1, me2, me3 = st.columns(3)
             me1.metric(f"Equipment OK", len(df_equip[status_series == 'OK']))
             me2.metric(f"Faulty ⚠️", len(df_equip[status_series == 'FAULTY']))
@@ -189,8 +191,10 @@ with tab_a1:
 with tab_a2:
     if not df_equip.empty:
         col_p2, col_b2 = st.columns(2)
+        # Use month selected in Tab 2
         df_pie = df_equip.copy()
         df_pie[selected_month] = df_pie[selected_month].astype(str).str.strip().str.upper()
+        
         with col_p2:
             st.plotly_chart(px.pie(df_pie, names=selected_month, title=f'Overall Equipment Condition ({selected_month})',
                                   color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}), use_container_width=True)
