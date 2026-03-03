@@ -77,7 +77,9 @@ if "selected_row_idx" not in st.session_state:
 # 5. SIDEBAR
 with st.sidebar:
     st.markdown("## 🛡️ VTMS ADMIN")
-    st.image("https://cdn-icons-png.flaticon.com/512/1063/1063376.png", width=70)
+    if os.path.exists("logo.png"):
+        st.image("logo.png", use_container_width=True)
+    
     st.divider()
     
     st.markdown("### 🔍 REPORT FILTERS")
@@ -201,3 +203,4 @@ with tab_a2:
         with col_b2:
             if 'Site' in df_pie.columns:
                 st.plotly_chart(px.histogram(df_pie, x='Site', color=selected_month, barmode='group', title='Equipment Status by Location'), use_container_width=True)
+
