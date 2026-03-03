@@ -59,7 +59,7 @@ with st.sidebar:
 
     # --- BUTANG FOLDER GOOGLE DRIVE ---
     st.markdown("### 📂 AKSES FAIL")
-    folder_url = "https://drive.google.com/drive/folders/1TOAYruSlCbRBM55zmxxa8SfxOfE-U1_I?usp=drive_link"
+    folder_url = "https://drive.google.com/drive/folders/1lG9eKZ69hpT6q-aqXpNxyd0HMcXdr3A4rAjUaXLCpDpOPffFzG0XK-MGBLaGHcBMcyqWjyLy?usp=drive_link"
     st.link_button("📁 Buka Folder Laporan (Drive)", folder_url, use_container_width=True)
     
     st.divider()
@@ -188,5 +188,6 @@ with col_bar:
         fig_bar = px.bar(counts, x='Jenis', y='Bil', title='Kekerapan Jenis Laporan',
                          color='Jenis', text='Bil')
         st.plotly_chart(fig_bar, use_container_width=True)
+
 
 
