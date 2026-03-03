@@ -4,7 +4,7 @@ import plotly.express as px
 from datetime import datetime
 import pytz
 import re
-import os  # Added missing import
+import os
 
 # 1. PAGE CONFIGURATION
 st.set_page_config(
@@ -35,7 +35,6 @@ st.markdown("""
 # 3. DATA LINKS (CSV FORMAT)
 SHEET_REPORT_URL = "https://docs.google.com/spreadsheets/d/1WB76n71wxMT3i5ZCaoCBIyb888il-qBydY8OEgC81Q8/export?format=csv&gid=296214979"
 SHEET_EQUIP_URL = "https://docs.google.com/spreadsheets/d/1QeQgEA--b1TX3Q8LPgmog7XP97Tg0dHSr3gIAAGXV4g/export?format=csv&gid=416421947"
-
 PDF_COL = "UPLOAD REPORT" 
 
 # 4. DATA LOAD FUNCTION
@@ -44,16 +43,12 @@ def load_data(url):
     try:
         data = pd.read_csv(url, on_bad_lines='skip')
         data.columns = data.columns.str.strip()
-        
-        # Auto-detect time column
         time_col = next((c for c in data.columns if any(x in c.lower() for x in ['timestamp', 'time', 'date', 'tarikh'])), None)
-        
         if time_col:
             data[time_col] = pd.to_datetime(data[time_col], errors='coerce')
             data['Year'] = data[time_col].dt.year
         else:
             data['Year'] = None
-            
         return data
     except Exception as e:
         return pd.DataFrame()
@@ -76,13 +71,8 @@ if "selected_row_idx" not in st.session_state:
 # 5. SIDEBAR
 with st.sidebar:
     st.markdown("## 🛡️ VTMS ADMIN")
-    
-    # Check for logo - Optimized to show a default if file is missing
     if os.path.exists("logo.png"):
         st.image("logo.png", use_container_width=True)
-    else:
-        st.info("Upload 'logo.png' to GitHub to see your brand logo here.")
-    
     st.divider()
     
     st.markdown("### 🔍 REPORT FILTERS")
@@ -175,7 +165,7 @@ with tab2:
 
             st.dataframe(df_eq_show.style.map(lambda x: 'background-color: #D4EDDA' if x=='OK' else ('background-color: #F8D7DA' if x=='MISSING' else ('background-color: #FFF3CD' if x=='FAULTY' else '')), subset=[selected_month]), use_container_width=True, hide_index=True)
 
-# 7. ANALYTICS CHARTS (DYNAMIC)
+# 7. ANALYTICS CHARTS (DYNAMIC GRID)
 st.divider()
 st.subheader("🎯 Performance Overview")
 tab_a1, tab_a2 = st.tabs(["Report Analytics", "Equipment Analytics"])
@@ -190,13 +180,21 @@ with tab_a1:
 
 with tab_a2:
     if not df_equip.empty:
-        col_p2, col_b2 = st.columns(2)
+        # Create a grid for charts
+        col_left, col_right = st.columns(2)
         df_pie = df_equip.copy()
         df_pie[selected_month] = df_pie[selected_month].astype(str).str.strip().str.upper()
         
-        with col_p2:
-            st.plotly_chart(px.pie(df_pie, names=selected_month, title=f'Overall Equipment Condition ({selected_month})',
+        with col_left:
+            st.plotly_chart(px.pie(df_pie, names=selected_month, title=f'Condition Overview ({selected_month})',
                                   color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}), use_container_width=True)
-        with col_b2:
+        with col_right:
             if 'Site' in df_pie.columns:
-                st.plotly_chart(px.histogram(df_pie, x='Site', color=selected_month, barmode='group', title='Equipment Status by Location'), use_container_width=True)
+                st.plotly_chart(px.histogram(df_pie, x='Site', color=selected_month, barmode='group', title='Status by Location',
+                                            color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}), use_container_width=True)
+        
+        # FULL WIDTH CHART: STATUS BY TYPE
+        st.divider()
+        if 'Type' in df_pie.columns:
+            st.plotly_chart(px.histogram(df_pie, x='Type', color=selected_month, barmode='group', title=f'Equipment Status by Category/Type ({selected_month})',
+                                        color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}), use_container_width=True)
