@@ -99,7 +99,7 @@ if search_staff:
 display_df = df.sort_values(by="Timestamp", ascending=False).reset_index(drop=True)
 
 # --- 6. MAIN DASHBOARD ---
-st.title("📊 VTMS Management Dashboard")
+st.title("📊 VTMS LPJ/PTP Report Management Dashboard")
 st.write(f"Paparan Data: **{sel_tahun}** | Masa Sistem: **{waktu_msia.strftime('%d/%m/%Y %H:%M')}**")
 
 st.divider()
@@ -112,7 +112,7 @@ m3.metric("Rejected ❌", len(display_df[display_df['STATUS'] == 'REJECTED']) if
 m4.metric("Jumlah Staff", display_df['Name'].nunique() if 'Name' in display_df.columns else 0)
 
 # --- 7. JADUAL INTERAKTIF ---
-st.subheader("📋 Rekod Laporan (Klik baris untuk Preview)")
+st.subheader("📋 Rekod Laporan ")
 
 # Fungsi untuk warnakan cell STATUS
 def style_status(val):
@@ -195,6 +195,3 @@ with col_bar:
         fig_bar = px.bar(counts, x='Jenis', y='Bil', title='Kekerapan Jenis Laporan',
                          color='Jenis', text='Bil')
         st.plotly_chart(fig_bar, use_container_width=True)
-
-
-
