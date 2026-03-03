@@ -26,13 +26,17 @@ st.markdown("""
         background: #F8F9FA; padding: 15px; border-radius: 12px; 
         border-top: 4px solid #0984E3; box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
     }
+    .alert-box {
+        background-color: #FFF5F5; border-left: 5px solid #FF4B4B;
+        padding: 15px; border-radius: 8px; margin-bottom: 20px;
+    }
     .pdf-view-container { border: 2px solid #0984E3; border-radius: 12px; overflow: hidden; margin-top: 10px; }
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
 
-# 3. DATA LINKS (CSV FORMAT)
+# 3. DATA LINKS
 SHEET_REPORT_URL = "https://docs.google.com/spreadsheets/d/1WB76n71wxMT3i5ZCaoCBIyb888il-qBydY8OEgC81Q8/export?format=csv&gid=296214979"
 SHEET_EQUIP_URL = "https://docs.google.com/spreadsheets/d/1QeQgEA--b1TX3Q8LPgmog7XP97Tg0dHSr3gIAAGXV4g/export?format=csv&gid=416421947"
 PDF_COL = "UPLOAD REPORT" 
@@ -74,8 +78,10 @@ with st.sidebar:
     if os.path.exists("logo.png"):
         st.image("logo.png", use_container_width=True)
     st.divider()
+    st.markdown(f"🕒 **Last Sync:** {waktu_msia.strftime('%H:%M:%S')}")
+    st.divider()
     
-    st.markdown("### 🔍 REPORT FILTERS")
+    st.markdown("### 🔍 GLOBAL FILTERS")
     if not df_raw.empty and 'Year' in df_raw.columns:
         year_list = sorted(df_raw['Year'].dropna().unique(), reverse=True)
         sel_year = st.selectbox("📅 Select Year:", ["All Years"] + [int(t) for t in year_list])
@@ -86,19 +92,33 @@ with st.sidebar:
     search_staff = st.text_input("👤 Staff Name:")
     
     st.divider()
-    folder_url = "https://drive.google.com/drive/folders/1lG9eKZ69hpT6q-aqXpNxyd0HMcXdr3A4rAjUaXLCpDpOPffFzG0XK-MGBLaGHcBMcyqWjyLy"
-    st.link_button("📂 Open Drive Folder", folder_url, use_container_width=True)
+    st.link_button("📂 Open Drive Folder", "https://drive.google.com/drive/folders/1lG9eKZ69hpT6q-aqXpNxyd0HMcXdr3A4rAjUaXLCpDpOPffFzG0XK-MGBLaGHcBMcyqWjyLy", use_container_width=True)
 
-# 6. MAIN CONTENT
+# 6. EXECUTIVE SUMMARY (NEW TOP PANEL)
 st.title("📊 VTMS LPJ/PTP Management Dashboard")
 
-# DEFINISI TAB
+if not df_equip.empty:
+    month_cols = [c for c in df_equip.columns if any(yr in c for yr in ["2025", "2026"])]
+    latest_month = month_cols[-1] if month_cols else None
+    
+    if latest_month:
+        status_check = df_equip[latest_month].astype(str).str.strip().str.upper()
+        faulty_count = len(df_equip[status_check.isin(['FAULTY', 'MISSING'])])
+        
+        if faulty_count > 0:
+            st.markdown(f"""
+            <div class="alert-box">
+                <h4 style="margin:0; color:#FF4B4B;">⚠️ SYSTEM ALERT: {faulty_count} ISSUES DETECTED</h4>
+                <p style="margin:5px 0 0 0;">Immediate attention required for assets marked as FAULTY or MISSING in {latest_month}.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+# 7. MAIN CONTENT TABS
 tab1, tab2 = st.tabs(["📝 Maintenance Reports", "⚙️ Equipment Status"])
 
 # --- TAB 1: MAINTENANCE REPORTS ---
 with tab1:
     if not df_raw.empty:
-        # Filter Data
         df = df_raw.copy()
         if sel_year != "All Years": df = df[df['Year'] == sel_year]
         if search_report: df = df[df['REPORT CHECKLIST'].str.contains(search_report, case=False, na=False)]
@@ -107,14 +127,13 @@ with tab1:
         time_col = next((c for c in df.columns if any(x in c.lower() for x in ['timestamp', 'time', 'date', 'tarikh'])), None)
         display_df = df.sort_values(by=time_col, ascending=False).reset_index(drop=True) if time_col else df.reset_index(drop=True)
         
-        # Metrics
+        # Metrics & Analytics
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("Total Reports", len(display_df))
         m2.metric("Approved ✅", len(display_df[display_df['STATUS'] == 'APPROVED']) if 'STATUS' in display_df.columns else 0)
         m3.metric("Rejected ❌", len(display_df[display_df['STATUS'] == 'REJECTED']) if 'STATUS' in display_df.columns else 0)
-        m4.metric("Active Staff", display_df['Name'].nunique() if 'Name' in display_df.columns else 0)
+        m4.metric("Pending ⏳", len(display_df[~display_df['STATUS'].isin(['APPROVED', 'REJECTED'])]) if 'STATUS' in display_df.columns else 0)
 
-        # PERFORMANCE OVERVIEW (REPORT ONLY)
         st.markdown("### 🎯 Maintenance Performance Overview")
         col_p, col_b = st.columns(2)
         with col_p:
@@ -125,8 +144,6 @@ with tab1:
                                          color_discrete_map={'APPROVED':'#2ecc71', 'REJECTED':'#e74c3c'}), use_container_width=True)
 
         st.divider()
-
-        # Table & Preview
         st.subheader("📋 Submitted Reports Record")
         if 'REPORT CHECKLIST' in display_df.columns:
             display_df.insert(0, 'ICON', display_df['REPORT CHECKLIST'].map(icon_map).fillna("https://cdn-icons-png.flaticon.com/512/2991/2991108.png"))
@@ -164,18 +181,15 @@ with tab2:
         st.divider()
 
         if selected_month in df_equip.columns:
-            # Data Processing
             status_series = df_equip[selected_month].astype(str).str.strip().str.upper()
             df_pie = df_equip.copy()
             df_pie[selected_month] = status_series
             
-            # Metrics
             me1, me2, me3 = st.columns(3)
             me1.metric(f"Equipment OK", len(df_equip[status_series == 'OK']))
             me2.metric(f"Faulty ⚠️", len(df_equip[status_series == 'FAULTY']))
             me3.metric(f"Missing ❌", len(df_equip[status_series == 'MISSING']))
 
-            # PERFORMANCE OVERVIEW (EQUIPMENT ONLY)
             st.markdown(f"### 🎯 Equipment Performance Overview ({selected_month})")
             col_left, col_right = st.columns(2)
             with col_left:
@@ -191,8 +205,6 @@ with tab2:
                                             color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}), use_container_width=True)
             
             st.divider()
-
-            # Inventory Table
             st.subheader("📦 Inventory Asset List")
             search_eq = st.text_input("🔍 Search Asset (SN, Name, Site):", key="search_eq_tab")
             essential_cols = ["Site", "Type", "Serial No", "IP Address", selected_month]
@@ -202,5 +214,3 @@ with tab2:
                 df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
 
             st.dataframe(df_eq_show.style.map(lambda x: 'background-color: #D4EDDA' if x=='OK' else ('background-color: #F8D7DA' if x=='MISSING' else ('background-color: #FFF3CD' if x=='FAULTY' else '')), subset=[selected_month]), use_container_width=True, hide_index=True)
-    else:
-        st.error("Failed to load Equipment data.")
