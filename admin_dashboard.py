@@ -96,9 +96,28 @@ with st.sidebar:
 
 # 6. EXECUTIVE SUMMARY
 st.markdown("""
-    <h1 style='font-family: Segoe UI, sans-serif; color: #0984E3; font-size: 70px; font-weight: bold; text-align: left;'>
-        🛡️ VTMS LPJ/PTP Management Dashboard
-    </h1>
+    <div style="
+        background: linear-gradient(90deg, #0984E3, #6c5ce7);
+        padding: 20px;
+        border-radius: 15px;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    ">
+        <h1 style="
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            font-size: 40px;
+            font-weight: 800;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            letter-spacing: -1px;
+        ">
+            📊 VTMS LPJ/PTP <span style="font-weight: 300; opacity: 0.9;">Management Dashboard</span>
+        </h1>
+        <p style="color: white; margin: 5px 0 0 0; opacity: 0.8; font-size: 14px;">
+            Vessel Traffic Management System | Administration & Asset Inventory Control
+        </p>
+    </div>
 """, unsafe_allow_html=True)
 if not df_equip.empty:
     month_cols = [c for c in df_equip.columns if any(yr in c for yr in ["2025", "2026"])]
@@ -240,6 +259,7 @@ with tab2:
                 df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
 
             st.dataframe(df_eq_show.style.map(lambda x: 'background-color: #D4EDDA' if x=='OK' else ('background-color: #F8D7DA' if x=='MISSING' else ('background-color: #FFF3CD' if x=='FAULTY' else '')), subset=[selected_month]), use_container_width=True, hide_index=True)
+
 
 
 
