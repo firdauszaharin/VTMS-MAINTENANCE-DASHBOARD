@@ -212,7 +212,7 @@ with tab2:
                     df_pie, 
                     names=selected_month, 
                     title='Condition Overview',
-                    hole=0.7, 
+                    hole=0.55, 
                     color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}
                 )
                 fig_donut.update_traces(textposition='inside', textinfo='percent+label')
@@ -237,4 +237,5 @@ with tab2:
                 df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
 
             st.dataframe(df_eq_show.style.map(lambda x: 'background-color: #D4EDDA' if x=='OK' else ('background-color: #F8D7DA' if x=='MISSING' else ('background-color: #FFF3CD' if x=='FAULTY' else '')), subset=[selected_month]), use_container_width=True, hide_index=True)
+
 
