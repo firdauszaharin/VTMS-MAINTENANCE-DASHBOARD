@@ -1,8 +1,5 @@
 streamlit
-fpdf2
-pillow
-numpy
-streamlit-drawable-canvas
 pandas
 plotly
 pytz
+streamlit-plotly-events
