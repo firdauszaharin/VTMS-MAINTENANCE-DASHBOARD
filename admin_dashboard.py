@@ -97,13 +97,13 @@ with st.sidebar:
 # 6. MAIN CONTENT
 st.title("📊 VTMS LPJ/PTP Management Dashboard")
 
-tab1, tab2 = st.tabs(["📝 Laporan Harian", "⚙️ Status Equipment"])
+tab1, tab2 = st.tabs(["📝 Maintenance Report ", "⚙️ Status Equipment"])
 
 # --- TAB 1: LAPORAN ---
 with tab1:
     if not df_raw.empty:
         df = df_raw.copy()
-        if sel_tahun != "Semua Tahun": df = df[df['Tahun'] == sel_tahun]
+        if sel_tahun != "All year": df = df[df['Tahun'] == sel_tahun]
         if search_report: df = df[df['REPORT CHECKLIST'].str.contains(search_report, case=False, na=False)]
         if search_staff: df = df[df['Name'].str.contains(search_staff, case=False, na=False)]
         
@@ -114,12 +114,12 @@ with tab1:
             display_df.insert(0, 'ICON', display_df['REPORT CHECKLIST'].map(icon_map).fillna("https://cdn-icons-png.flaticon.com/512/2991/2991108.png"))
 
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Jumlah Laporan", len(display_df))
+        m1.metric("Total Report", len(display_df))
         m2.metric("Approved ✅", len(display_df[display_df['STATUS'] == 'APPROVED']) if 'STATUS' in display_df.columns else 0)
         m3.metric("Rejected ❌", len(display_df[display_df['STATUS'] == 'REJECTED']) if 'STATUS' in display_df.columns else 0)
-        m4.metric("Jumlah Staff", display_df['Name'].nunique() if 'Name' in display_df.columns else 0)
+        m4.metric("Staff", display_df['Name'].nunique() if 'Name' in display_df.columns else 0)
 
-        st.subheader("📋 Rekod Laporan")
+        st.subheader("📋 Submitted Reports")
         event = st.dataframe(display_df, use_container_width=True, hide_index=True,
                             column_config={"ICON": st.column_config.ImageColumn("Type"), PDF_COL: st.column_config.LinkColumn("Fail Report")},
                             on_select="rerun", selection_mode="single-row")
@@ -174,7 +174,7 @@ with tab2:
 
 # 7. GRAF ANALITIK (DINAMIK)
 st.divider()
-st.subheader("📊 Analitik Ringkas")
+st.subheader("🎯 Performance Overview")
 tab_a1, tab_a2 = st.tabs(["Analitik Laporan", "Analitik Peralatan"])
 
 with tab_a1:
@@ -198,3 +198,4 @@ with tab_a2:
         with col_b2:
             if 'Site' in df_pie.columns:
                 st.plotly_chart(px.histogram(df_pie, x='Site', color=selected_month, barmode='group', title='Status mengikut Lokasi'), use_container_width=True)
+
