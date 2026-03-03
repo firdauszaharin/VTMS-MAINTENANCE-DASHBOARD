@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
-import pytz 
+import pytz
 import os
 import re
 
@@ -32,12 +32,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. PAUTAN DATA
-# URL Laporan Harian (CSV)
-SHEET_REPORT_URL = "https://docs.google.com/spreadsheets/d/1WB76n71wxMT3i5ZCaoCBIyb888il-qBydY8OEgC81Q8/edit?usp=sharing"
-
-# NOTA: Sila pastikan anda "Publish to Web" sebagai CSV untuk link di bawah:
-# Link di bawah telah ditukar kepada format export CSV
+# 3. PAUTAN DATA (Telah Dibaiki ke format CSV)
+SHEET_REPORT_URL = "https://docs.google.com/spreadsheets/d/1WB76n71wxMT3i5ZCaoCBIyb888il-qBydY8OEgC81Q8/export?format=csv"
 SHEET_EQUIP_URL = "https://docs.google.com/spreadsheets/d/1QeQgEA--b1TX3Q8LPgmog7XP97Tg0dHSr3gIAAGXV4g/export?format=csv" 
 
 PDF_COL = "UPLOAD REPORT" 
@@ -48,13 +44,11 @@ def load_data(url):
     try:
         data = pd.read_csv(url)
         data.columns = data.columns.str.strip()
-        # Logik khusus untuk Laporan Harian
         if 'Timestamp' in data.columns:
             data['Timestamp'] = pd.to_datetime(data['Timestamp'])
             data['Tahun'] = data['Timestamp'].dt.year
         return data
     except Exception as e:
-        st.error(f"Ralat memuatkan data: {e}")
         return pd.DataFrame()
 
 df_raw = load_data(SHEET_REPORT_URL)
@@ -69,7 +63,6 @@ icon_map = {
     "SERVER ROOM REPORT (PTP/LPJ)": "https://cdn-icons-png.flaticon.com/512/2333/2333241.png"
 }
 
-# Initialize Session State
 if "selected_row_idx" not in st.session_state:
     st.session_state.selected_row_idx = None
 
@@ -103,17 +96,14 @@ with tab1:
         if search_staff: df = df[df['Name'].str.contains(search_staff, case=False, na=False)]
         
         display_df = df.sort_values(by="Timestamp", ascending=False).reset_index(drop=True)
-        # Masukkan Icon
         display_df.insert(0, 'ICON', display_df['REPORT CHECKLIST'].map(icon_map).fillna("https://cdn-icons-png.flaticon.com/512/2991/2991108.png"))
 
-        # Metrics
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("Jumlah Laporan", len(display_df))
         m2.metric("Approved ✅", len(display_df[display_df['STATUS'] == 'APPROVED']) if 'STATUS' in display_df.columns else 0)
         m3.metric("Rejected ❌", len(display_df[display_df['STATUS'] == 'REJECTED']) if 'STATUS' in display_df.columns else 0)
         m4.metric("Jumlah Staff", display_df['Name'].nunique() if 'Name' in display_df.columns else 0)
 
-        # Styling Status
         def style_status_val(val):
             if val == 'REJECTED': return 'color: red; font-weight: bold;'
             if val == 'APPROVED': return 'color: green; font-weight: bold;'
@@ -135,7 +125,6 @@ with tab1:
         if len(event.selection.rows) > 0:
             st.session_state.selected_row_idx = event.selection.rows[0]
 
-        # Preview PDF Logik
         if st.session_state.selected_row_idx is not None:
             idx = st.session_state.selected_row_idx
             if idx < len(display_df):
@@ -154,44 +143,41 @@ with tab1:
                         file_id = match.group()
                         st.markdown(f'<div class="pdf-view-container"><iframe src="https://drive.google.com/file/d/{file_id}/preview" width="100%" height="800px"></iframe></div>', unsafe_allow_html=True)
                 else: st.warning("Pautan PDF tidak sah atau tiada fail.")
+    else:
+        st.error("Data Laporan gagal dimuatkan. Sila semak pautan Google Sheets anda.")
 
 # --- TAB 2: STATUS EQUIPMENT ---
 with tab2:
     if not df_equip.empty:
         st.subheader("⚙️ Inventory & Status Semasa Peralatan")
-        
-        # Kolum status berdasarkan fail yang anda berikan (SEPT 2025)
         status_col = "SEPT 2025" 
         
-        # Metrics Equipment
-        e1, e2, e3 = st.columns(3)
         if status_col in df_equip.columns:
+            e1, e2, e3 = st.columns(3)
             e1.metric("Equipment OK", len(df_equip[df_equip[status_col] == 'OK']))
             e2.metric("Faulty ⚠️", len(df_equip[df_equip[status_col] == 'FAULTY']))
             e3.metric("Missing ❌", len(df_equip[df_equip[status_col] == 'MISSING']))
+
+            search_eq = st.text_input("🔍 Cari Alat (SN, Nama, IP):", placeholder="Contoh: SGH...")
+            df_eq_show = df_equip.copy()
+            if search_eq:
+                df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
+
+            def style_equip_val(val):
+                if val == 'OK': return 'background-color: #D4EDDA; color: #155724'
+                if val == 'FAULTY': return 'background-color: #FFF3CD; color: #856404'
+                if val == 'MISSING': return 'background-color: #F8D7DA; color: #721C24'
+                return ''
+
+            st.dataframe(
+                df_eq_show.style.map(style_equip_val, subset=[status_col]),
+                use_container_width=True,
+                hide_index=True
+            )
         else:
-            st.warning(f"Kolum '{status_col}' tidak ditemui dalam sheet. Sila pastikan nama kolum betul.")
-
-        # Filter Equipment
-        search_eq = st.text_input("🔍 Cari Alat (SN, Nama, IP):", placeholder="Contoh: SGH...")
-        df_eq_show = df_equip.copy()
-        if search_eq:
-            df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
-
-        # Styling Row Equipment (Guna .map untuk Pandas baru)
-        def style_equip_val(val):
-            if val == 'OK': return 'background-color: #D4EDDA; color: #155724'
-            if val == 'FAULTY': return 'background-color: #FFF3CD; color: #856404'
-            if val == 'MISSING': return 'background-color: #F8D7DA; color: #721C24'
-            return ''
-
-        st.dataframe(
-            df_eq_show.style.map(style_equip_val, subset=[status_col] if status_col in df_eq_show.columns else []),
-            use_container_width=True,
-            hide_index=True
-        )
+            st.warning(f"Kolum '{status_col}' tidak ditemui. Sila semak ejaan tajuk kolum di Google Sheets.")
     else:
-        st.info("Sila pastikan URL Google Sheets di SHEET_EQUIP_URL dipasang dengan betul sebagai CSV.")
+        st.error("Data Equipment gagal dimuatkan. Pastikan URL CSV betul.")
 
 # GRAF ANALITIK
 if not df_raw.empty:
@@ -204,5 +190,3 @@ if not df_raw.empty:
     with c_bar:
         fig2 = px.histogram(df_raw, x='REPORT CHECKLIST', color='STATUS', title='Kekerapan Laporan mengikut Jenis')
         st.plotly_chart(fig2, use_container_width=True)
-
-
