@@ -3,7 +3,6 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 import pytz
-import os
 import re
 
 # 1. KONFIGURASI HALAMAN
@@ -32,9 +31,11 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. PAUTAN DATA (Telah Dibaiki ke format CSV)
-SHEET_REPORT_URL = "https://docs.google.com/spreadsheets/d/1WB76n71wxMT3i5ZCaoCBIyb888il-qBydY8OEgC81Q8/edit?resourcekey=&gid=296214979#gid=296214979"
-SHEET_EQUIP_URL = "https://docs.google.com/spreadsheets/d/1QeQgEA--b1TX3Q8LPgmog7XP97Tg0dHSr3gIAAGXV4g/edit?gid=416421947#gid=416421947" 
+# 3. PAUTAN DATA (FORMAT CSV)
+# Laporan Harian
+SHEET_REPORT_URL = "https://docs.google.com/spreadsheets/d/1WB76n71wxMT3i5ZCaoCBIyb888il-qBydY8OEgC81Q8/export?format=csv&gid=296214979"
+# Status Equipment
+SHEET_EQUIP_URL = "https://docs.google.com/spreadsheets/d/1QeQgEA--b1TX3Q8LPgmog7XP97Tg0dHSr3gIAAGXV4g/export?format=csv&gid=416421947"
 
 PDF_COL = "UPLOAD REPORT" 
 
@@ -42,7 +43,7 @@ PDF_COL = "UPLOAD REPORT"
 @st.cache_data(ttl=60)
 def load_data(url):
     try:
-        data = pd.read_csv(url)
+        data = pd.read_csv(url, on_bad_lines='skip')
         data.columns = data.columns.str.strip()
         if 'Timestamp' in data.columns:
             data['Timestamp'] = pd.to_datetime(data['Timestamp'])
@@ -142,42 +143,43 @@ with tab1:
                     if match:
                         file_id = match.group()
                         st.markdown(f'<div class="pdf-view-container"><iframe src="https://drive.google.com/file/d/{file_id}/preview" width="100%" height="800px"></iframe></div>', unsafe_allow_html=True)
-                else: st.warning("Pautan PDF tidak sah atau tiada fail.")
     else:
-        st.error("Data Laporan gagal dimuatkan. Sila semak pautan Google Sheets anda.")
+        st.error("Data Laporan gagal dimuatkan. Sila semak akses 'Share' Google Sheets anda.")
 
 # --- TAB 2: STATUS EQUIPMENT ---
 with tab2:
     if not df_equip.empty:
         st.subheader("⚙️ Inventory & Status Semasa Peralatan")
-        status_col = "SEPT 2025" 
         
-        if status_col in df_equip.columns:
-            e1, e2, e3 = st.columns(3)
-            e1.metric("Equipment OK", len(df_equip[df_equip[status_col] == 'OK']))
-            e2.metric("Faulty ⚠️", len(df_equip[df_equip[status_col] == 'FAULTY']))
-            e3.metric("Missing ❌", len(df_equip[df_equip[status_col] == 'MISSING']))
+        # AUTO-DETECT BULAN: Cari kolum yang ada "2025" atau "2026"
+        cols = df_equip.columns.tolist()
+        status_col = next((c for c in cols if "2025" in c or "2026" in c), cols[-1])
+        
+        st.info(f"Menandakan status berdasarkan kolum: **{status_col}**")
 
-            search_eq = st.text_input("🔍 Cari Alat (SN, Nama, IP):", placeholder="Contoh: SGH...")
-            df_eq_show = df_equip.copy()
-            if search_eq:
-                df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
+        e1, e2, e3 = st.columns(3)
+        e1.metric("Equipment OK", len(df_equip[df_equip[status_col] == 'OK']))
+        e2.metric("Faulty ⚠️", len(df_equip[df_equip[status_col] == 'FAULTY']))
+        e3.metric("Missing ❌", len(df_equip[df_equip[status_col] == 'MISSING']))
 
-            def style_equip_val(val):
-                if val == 'OK': return 'background-color: #D4EDDA; color: #155724'
-                if val == 'FAULTY': return 'background-color: #FFF3CD; color: #856404'
-                if val == 'MISSING': return 'background-color: #F8D7DA; color: #721C24'
-                return ''
+        search_eq = st.text_input("🔍 Cari Alat (SN, Nama, Site, IP):", placeholder="Contoh: SGH atau PTP...")
+        df_eq_show = df_equip.copy()
+        if search_eq:
+            df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
 
-            st.dataframe(
-                df_eq_show.style.map(style_equip_val, subset=[status_col]),
-                use_container_width=True,
-                hide_index=True
-            )
-        else:
-            st.warning(f"Kolum '{status_col}' tidak ditemui. Sila semak ejaan tajuk kolum di Google Sheets.")
+        def style_equip_val(val):
+            if val == 'OK': return 'background-color: #D4EDDA; color: #155724'
+            if val == 'FAULTY': return 'background-color: #FFF3CD; color: #856404'
+            if val == 'MISSING': return 'background-color: #F8D7DA; color: #721C24'
+            return ''
+
+        st.dataframe(
+            df_eq_show.style.map(style_equip_val, subset=[status_col]),
+            use_container_width=True,
+            hide_index=True
+        )
     else:
-        st.error("Data Equipment gagal dimuatkan. Pastikan URL CSV betul.")
+        st.error("Data Equipment gagal dimuatkan. Sila semak akses 'Share' pada Google Sheets Equipment.")
 
 # GRAF ANALITIK
 if not df_raw.empty:
@@ -190,4 +192,3 @@ if not df_raw.empty:
     with c_bar:
         fig2 = px.histogram(df_raw, x='REPORT CHECKLIST', color='STATUS', title='Kekerapan Laporan mengikut Jenis')
         st.plotly_chart(fig2, use_container_width=True)
-
