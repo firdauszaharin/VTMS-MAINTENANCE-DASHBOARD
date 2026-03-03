@@ -208,10 +208,22 @@ with tab2:
             me3.metric(f"Missing ❌", len(df_equip[status_series == 'MISSING']))
 
             st.markdown(f"### 🎯 Equipment Performance Overview ({selected_month})")
-            col_left, col_right = st.columns(2)
-            with col_left:
-                st.plotly_chart(px.pie(df_pie, names=selected_month, title='Condition Overview',
-                                      color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}), use_container_width=True)
+col_left, col_right = st.columns(2)
+
+with col_left:
+    # Menggunakan hole=0.5 untuk kesan Donut
+    fig_donut = px.pie(
+        df_pie, 
+        names=selected_month, 
+        title='Condition Overview',
+        hole=0.5, 
+        color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}
+    )
+    
+    # Menambah label peratusan di tengah (opsional tapi nampak pro)
+    fig_donut.update_traces(textposition='inside', textinfo='percent+label')
+    
+    st.plotly_chart(fig_donut, use_container_width=True)
             with col_right:
                 if 'Site' in df_pie.columns:
                     st.plotly_chart(px.histogram(df_pie, x='Site', color=selected_month, barmode='group', title='Status by Location',
@@ -231,3 +243,4 @@ with tab2:
                 df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
 
             st.dataframe(df_eq_show.style.map(lambda x: 'background-color: #D4EDDA' if x=='OK' else ('background-color: #F8D7DA' if x=='MISSING' else ('background-color: #FFF3CD' if x=='FAULTY' else '')), subset=[selected_month]), use_container_width=True, hide_index=True)
+
