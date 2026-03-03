@@ -48,7 +48,7 @@ def local_css():
 def check_admin_password():
     local_css()
     if "admin_auth" not in st.session_state:
-        st.session_state["admin_auth"] = true
+        st.session_state["admin_auth"] = True
 
     if not st.session_state["admin_auth"]:
         _, col_mid, _ = st.columns([1, 1.3, 1])
@@ -231,4 +231,5 @@ st.download_button(
     file_name=f"VTMS_Export_{datetime.now().strftime('%Y%m%d')}.csv",
     mime="text/csv"
 )
+
 
