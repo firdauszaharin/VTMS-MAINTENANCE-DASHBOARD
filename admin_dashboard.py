@@ -39,7 +39,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- 4. DATA LOADING ---
-# Pautan Google Sheets CSV
+# Pautan Google Sheets CSV (Publicly Shared as CSV)
 SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSEHHkyeSHjGBSi3wp-T5eE0vCZtgZ2mpWmUktMZiUHqfvb9Aow1r8OK_ZTq9wCQrxg62xTUX2DpgS_/pub?gid=296214979&single=true&output=csv"
 PDF_COL = "UPLOAD REPORT" 
 
@@ -47,7 +47,7 @@ PDF_COL = "UPLOAD REPORT"
 def load_data(url):
     try:
         data = pd.read_csv(url)
-        # Bersihkan nama kolum dari sebarang ruang kosong (whitespace)
+        # Bersihkan nama kolum (elak isu whitespace dari Google Sheets)
         data.columns = data.columns.str.strip()
         data['Timestamp'] = pd.to_datetime(data['Timestamp'])
         data['Tahun'] = data['Timestamp'].dt.year
@@ -62,7 +62,7 @@ if df_raw.empty:
     st.warning("⚠️ Menunggu data dari Google Sheets atau pautan tidak sah.")
     st.stop()
 
-# Initialize Session States untuk simpan pilihan baris
+# Initialize Session States
 if "selected_row_idx" not in st.session_state:
     st.session_state.selected_row_idx = None
 if "prev_filter_state" not in st.session_state:
@@ -100,7 +100,7 @@ with st.sidebar:
         st.session_state.prev_filter_state = current_filter
 
     st.divider()
-    # Butang Download CSV di Sidebar
+    # Butang Download CSV
     st.markdown("### 📥 EKSPORT")
     csv_export = df_raw.to_csv(index=False).encode('utf-8')
     st.download_button("Download All Data (CSV)", csv_export, "VTMS_Data_Full.csv", "text/csv", use_container_width=True)
@@ -114,7 +114,7 @@ if search_report:
 if search_staff:
     df = df[df['Name'].str.contains(search_staff, case=False, na=False)]
 
-# Urutkan mengikut masa terbaru (Timestamp)
+# Urutan masa terbaru
 display_df = df.sort_values(by="Timestamp", ascending=False).reset_index(drop=True)
 
 # --- 6. MAIN DASHBOARD ---
@@ -151,7 +151,7 @@ event = st.dataframe(
     hide_index=True
 )
 
-# Ambil index baris yang dipilih oleh user
+# Ambil index baris yang dipilih
 if len(event.selection.rows) > 0:
     st.session_state.selected_row_idx = event.selection.rows[0]
 
@@ -172,7 +172,6 @@ if st.session_state.selected_row_idx is not None:
                 st.rerun()
 
         if isinstance(link, str) and "drive.google.com" in link:
-            # Ekstrak ID File Google Drive secara selamat
             match = re.search(r'[-\w]{25,}', link)
             if match:
                 file_id = match.group()
@@ -181,16 +180,30 @@ if st.session_state.selected_row_idx is not None:
                 # Paparan Iframe PDF
                 st.markdown(f'''
                     <div class="pdf-view-container">
-                        <iframe src="{preview_url}" width="100%" height="800px" allow="autoplay"></iframe>
+                        <iframe src="{preview_url}" width="100%" height="800px"></iframe>
                     </div>
                 ''', unsafe_allow_html=True)
                 
-                # Butang Buka Original
                 st.link_button("📥 Muat Turun Fail Original", link, use_container_width=True)
             else:
-                st.error("Pautan fail tidak sah atau bukan pautan Google Drive.")
+                st.error("Pautan fail Google Drive tidak sah.")
         else:
-            st.warning("Tiada pautan fail PDF ditemui untuk rekod ini.")
+            st.warning("Tiada pautan fail PDF untuk rekod ini.")
 
 # --- 9. ANALITIK RINGKAS (GRAF) ---
-st.divider
+st.divider()
+col_pie, col_bar = st.columns(2)
+
+with col_pie:
+    if 'STATUS' in display_df.columns and not display_df.empty:
+        fig_pie = px.pie(display_df, names='STATUS', title='Statistik Kelulusan', hole=0.4,
+                         color_discrete_sequence=px.colors.qualitative.Pastel)
+        st.plotly_chart(fig_pie, use_container_width=True)
+
+with col_bar:
+    if 'REPORT CHECKLIST' in display_df.columns and not display_df.empty:
+        counts = display_df['REPORT CHECKLIST'].value_counts().reset_index()
+        counts.columns = ['Jenis', 'Bil']
+        fig_bar = px.bar(counts, x='Jenis', y='Bil', title='Kekerapan Jenis Laporan',
+                         color='Jenis', text='Bil')
+        st.plotly_chart(fig_bar, use_container_width=True)
