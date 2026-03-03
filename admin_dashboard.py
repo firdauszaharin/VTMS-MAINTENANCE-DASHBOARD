@@ -92,11 +92,13 @@ with st.sidebar:
 # 6. MAIN CONTENT
 st.title("📊 VTMS LPJ/PTP Management Dashboard")
 
+# DEFINISI TAB
 tab1, tab2 = st.tabs(["📝 Maintenance Reports", "⚙️ Equipment Status"])
 
-# --- TAB 1: REPORTS ---
+# --- TAB 1: MAINTENANCE REPORTS ---
 with tab1:
     if not df_raw.empty:
+        # Filter Data
         df = df_raw.copy()
         if sel_year != "All Years": df = df[df['Year'] == sel_year]
         if search_report: df = df[df['REPORT CHECKLIST'].str.contains(search_report, case=False, na=False)]
@@ -105,16 +107,30 @@ with tab1:
         time_col = next((c for c in df.columns if any(x in c.lower() for x in ['timestamp', 'time', 'date', 'tarikh'])), None)
         display_df = df.sort_values(by=time_col, ascending=False).reset_index(drop=True) if time_col else df.reset_index(drop=True)
         
-        if 'REPORT CHECKLIST' in display_df.columns:
-            display_df.insert(0, 'ICON', display_df['REPORT CHECKLIST'].map(icon_map).fillna("https://cdn-icons-png.flaticon.com/512/2991/2991108.png"))
-
+        # Metrics
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("Total Reports", len(display_df))
         m2.metric("Approved ✅", len(display_df[display_df['STATUS'] == 'APPROVED']) if 'STATUS' in display_df.columns else 0)
         m3.metric("Rejected ❌", len(display_df[display_df['STATUS'] == 'REJECTED']) if 'STATUS' in display_df.columns else 0)
         m4.metric("Active Staff", display_df['Name'].nunique() if 'Name' in display_df.columns else 0)
 
-        st.subheader("📋 Submitted Reports")
+        # PERFORMANCE OVERVIEW (REPORT ONLY)
+        st.markdown("### 🎯 Maintenance Performance Overview")
+        col_p, col_b = st.columns(2)
+        with col_p:
+            st.plotly_chart(px.pie(display_df, names='STATUS', title='Approval Status Distribution', hole=0.4, 
+                                  color_discrete_map={'APPROVED':'#2ecc71', 'REJECTED':'#e74c3c'}), use_container_width=True)
+        with col_b:
+            st.plotly_chart(px.histogram(display_df, x='REPORT CHECKLIST', color='STATUS', title='Report Frequency by Type',
+                                         color_discrete_map={'APPROVED':'#2ecc71', 'REJECTED':'#e74c3c'}), use_container_width=True)
+
+        st.divider()
+
+        # Table & Preview
+        st.subheader("📋 Submitted Reports Record")
+        if 'REPORT CHECKLIST' in display_df.columns:
+            display_df.insert(0, 'ICON', display_df['REPORT CHECKLIST'].map(icon_map).fillna("https://cdn-icons-png.flaticon.com/512/2991/2991108.png"))
+
         event = st.dataframe(display_df, use_container_width=True, hide_index=True,
                             column_config={
                                 "ICON": st.column_config.ImageColumn("Type"), 
@@ -129,7 +145,6 @@ with tab1:
             idx = st.session_state.selected_row_idx
             row = display_df.iloc[idx]
             link = row.get(PDF_COL, "")
-            st.markdown("---")
             if isinstance(link, str) and "drive.google.com" in link:
                 file_id = re.search(r'[-\w]{25,}', link).group()
                 st.markdown(f'<div class="pdf-view-container"><iframe src="https://drive.google.com/file/d/{file_id}/preview" width="100%" height="600px"></iframe></div>', unsafe_allow_html=True)
@@ -139,23 +154,46 @@ with tab1:
 # --- TAB 2: EQUIPMENT STATUS ---
 with tab2:
     if not df_equip.empty:
-        st.subheader("⚙️ Inventory & Current Equipment Status")
+        st.subheader("⚙️ Inventory & Equipment Status")
         month_cols = [c for c in df_equip.columns if any(yr in c for yr in ["2025", "2026"])]
         
-        c_sel1, c_sel2 = st.columns([0.4, 0.6])
-        with c_sel1:
+        c_sel, _ = st.columns([0.4, 0.6])
+        with c_sel:
             selected_month = st.selectbox("📅 Select Report Month:", month_cols, index=len(month_cols)-1)
         
         st.divider()
 
         if selected_month in df_equip.columns:
+            # Data Processing
             status_series = df_equip[selected_month].astype(str).str.strip().str.upper()
+            df_pie = df_equip.copy()
+            df_pie[selected_month] = status_series
             
+            # Metrics
             me1, me2, me3 = st.columns(3)
             me1.metric(f"Equipment OK", len(df_equip[status_series == 'OK']))
             me2.metric(f"Faulty ⚠️", len(df_equip[status_series == 'FAULTY']))
             me3.metric(f"Missing ❌", len(df_equip[status_series == 'MISSING']))
 
+            # PERFORMANCE OVERVIEW (EQUIPMENT ONLY)
+            st.markdown(f"### 🎯 Equipment Performance Overview ({selected_month})")
+            col_left, col_right = st.columns(2)
+            with col_left:
+                st.plotly_chart(px.pie(df_pie, names=selected_month, title='Condition Overview',
+                                      color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}), use_container_width=True)
+            with col_right:
+                if 'Site' in df_pie.columns:
+                    st.plotly_chart(px.histogram(df_pie, x='Site', color=selected_month, barmode='group', title='Status by Location',
+                                                color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}), use_container_width=True)
+            
+            if 'Type' in df_pie.columns:
+                st.plotly_chart(px.histogram(df_pie, x='Type', color=selected_month, barmode='group', title='Status by Equipment Category',
+                                            color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}), use_container_width=True)
+            
+            st.divider()
+
+            # Inventory Table
+            st.subheader("📦 Inventory Asset List")
             search_eq = st.text_input("🔍 Search Asset (SN, Name, Site):", key="search_eq_tab")
             essential_cols = ["Site", "Type", "Serial No", "IP Address", selected_month]
             df_eq_show = df_equip[[c for c in essential_cols if c in df_equip.columns]].copy()
@@ -164,37 +202,5 @@ with tab2:
                 df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
 
             st.dataframe(df_eq_show.style.map(lambda x: 'background-color: #D4EDDA' if x=='OK' else ('background-color: #F8D7DA' if x=='MISSING' else ('background-color: #FFF3CD' if x=='FAULTY' else '')), subset=[selected_month]), use_container_width=True, hide_index=True)
-
-# 7. ANALYTICS CHARTS (DYNAMIC GRID)
-st.divider()
-st.subheader("🎯 Performance Overview")
-tab_a1, tab_a2 = st.tabs(["Report Analytics", "Equipment Analytics"])
-
-with tab_a1:
-    if not df_raw.empty:
-        col_p, col_b = st.columns(2)
-        with col_p:
-            st.plotly_chart(px.pie(df_raw, names='STATUS', title='Approval Status Distribution', hole=0.4, color_discrete_map={'APPROVED':'#2ecc71', 'REJECTED':'#e74c3c'}), use_container_width=True)
-        with col_b:
-            st.plotly_chart(px.histogram(df_raw, x='REPORT CHECKLIST', color='STATUS', title='Report Frequency by Type'), use_container_width=True)
-
-with tab_a2:
-    if not df_equip.empty:
-        # Create a grid for charts
-        col_left, col_right = st.columns(2)
-        df_pie = df_equip.copy()
-        df_pie[selected_month] = df_pie[selected_month].astype(str).str.strip().str.upper()
-        
-        with col_left:
-            st.plotly_chart(px.pie(df_pie, names=selected_month, title=f'Condition Overview ({selected_month})',
-                                  color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}), use_container_width=True)
-        with col_right:
-            if 'Site' in df_pie.columns:
-                st.plotly_chart(px.histogram(df_pie, x='Site', color=selected_month, barmode='group', title='Status by Location',
-                                            color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}), use_container_width=True)
-        
-        # FULL WIDTH CHART: STATUS BY TYPE
-        st.divider()
-        if 'Type' in df_pie.columns:
-            st.plotly_chart(px.histogram(df_pie, x='Type', color=selected_month, barmode='group', title=f'Equipment Status by Category/Type ({selected_month})',
-                                        color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}), use_container_width=True)
+    else:
+        st.error("Failed to load Equipment data.")
