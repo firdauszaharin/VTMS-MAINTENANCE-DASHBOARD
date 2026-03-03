@@ -112,7 +112,7 @@ st.markdown("""
             text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
             letter-spacing: -1px;
         ">
-            📊 VTMS LPJ/PTP <span style="font-weight: 300; opacity: 0.9;">Management Dashboard</span>
+             VTMS LPJ/PTP <span style="font-weight: 300; opacity: 0.9;">Management Dashboard</span>
         </h1>
         <p style="color: white; margin: 5px 0 0 0; opacity: 0.8; font-size: 14px;">
             Vessel Traffic Management System | Administration & Asset Inventory Control
@@ -259,6 +259,7 @@ with tab2:
                 df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
 
             st.dataframe(df_eq_show.style.map(lambda x: 'background-color: #D4EDDA' if x=='OK' else ('background-color: #F8D7DA' if x=='MISSING' else ('background-color: #FFF3CD' if x=='FAULTY' else '')), subset=[selected_month]), use_container_width=True, hide_index=True)
+
 
 
 
