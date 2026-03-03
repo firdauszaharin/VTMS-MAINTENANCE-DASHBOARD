@@ -32,11 +32,13 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. PAUTAN DATA (Gantikan URL CSV anda di sini)
-# URL Laporan Harian
+# 3. PAUTAN DATA
+# URL Laporan Harian (CSV)
 SHEET_REPORT_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSEHHkyeSHjGBSi3wp-T5eE0vCZtgZ2mpWmUktMZiUHqfvb9Aow1r8OK_ZTq9wCQrxg62xTUX2DpgS_/pub?gid=296214979&single=true&output=csv"
-# URL Status Equipment (Pastikan anda 'Publish to Web' tab Status Equipment sebagai CSV)
-SHEET_EQUIP_URL = "https://docs.google.com/spreadsheets/d/1QeQgEA--b1TX3Q8LPgmog7XP97Tg0dHSr3gIAAGXV4g/edit?usp=sharing" 
+
+# NOTA: Sila pastikan anda "Publish to Web" sebagai CSV untuk link di bawah:
+# Link di bawah telah ditukar kepada format export CSV
+SHEET_EQUIP_URL = "https://docs.google.com/spreadsheets/d/1QeQgEA--b1TX3Q8LPgmog7XP97Tg0dHSr3gIAAGXV4g/export?format=csv" 
 
 PDF_COL = "UPLOAD REPORT" 
 
@@ -46,11 +48,13 @@ def load_data(url):
     try:
         data = pd.read_csv(url)
         data.columns = data.columns.str.strip()
+        # Logik khusus untuk Laporan Harian
         if 'Timestamp' in data.columns:
             data['Timestamp'] = pd.to_datetime(data['Timestamp'])
             data['Tahun'] = data['Timestamp'].dt.year
         return data
     except Exception as e:
+        st.error(f"Ralat memuatkan data: {e}")
         return pd.DataFrame()
 
 df_raw = load_data(SHEET_REPORT_URL)
@@ -88,7 +92,6 @@ with st.sidebar:
 # 6. MAIN CONTENT
 st.title("📊 VTMS LPJ/PTP Management Dashboard")
 
-# TAB SYSTEM
 tab1, tab2 = st.tabs(["📝 Laporan Harian", "⚙️ Status Equipment"])
 
 # --- TAB 1: LAPORAN ---
@@ -111,18 +114,18 @@ with tab1:
         m4.metric("Jumlah Staff", display_df['Name'].nunique() if 'Name' in display_df.columns else 0)
 
         # Styling Status
-        def style_status(val):
+        def style_status_val(val):
             if val == 'REJECTED': return 'color: red; font-weight: bold;'
             if val == 'APPROVED': return 'color: green; font-weight: bold;'
             return ''
 
         st.subheader("📋 Rekod Laporan")
         event = st.dataframe(
-            display_df.style.map(style_status, subset=['STATUS']),
+            display_df.style.map(style_status_val, subset=['STATUS'] if 'STATUS' in display_df.columns else []),
             use_container_width=True,
             column_config={
                 "ICON": st.column_config.ImageColumn("Type", width="small"),
-                PDF_COL: st.column_config.LinkColumn("Fail", display_text="BUKA PDF 📄")
+                PDF_COL: st.column_config.LinkColumn("Fail Report", display_text="BUKA PDF 📄")
             },
             on_select="rerun",
             selection_mode="single-row",
@@ -150,14 +153,14 @@ with tab1:
                     if match:
                         file_id = match.group()
                         st.markdown(f'<div class="pdf-view-container"><iframe src="https://drive.google.com/file/d/{file_id}/preview" width="100%" height="800px"></iframe></div>', unsafe_allow_html=True)
-                else: st.warning("Pautan PDF tidak sah.")
+                else: st.warning("Pautan PDF tidak sah atau tiada fail.")
 
 # --- TAB 2: STATUS EQUIPMENT ---
 with tab2:
     if not df_equip.empty:
         st.subheader("⚙️ Inventory & Status Semasa Peralatan")
         
-        # Contoh kolum status (Tukar "SEPT 2025" ikut kolum dalam sheet anda)
+        # Kolum status berdasarkan fail yang anda berikan (SEPT 2025)
         status_col = "SEPT 2025" 
         
         # Metrics Equipment
@@ -166,6 +169,8 @@ with tab2:
             e1.metric("Equipment OK", len(df_equip[df_equip[status_col] == 'OK']))
             e2.metric("Faulty ⚠️", len(df_equip[df_equip[status_col] == 'FAULTY']))
             e3.metric("Missing ❌", len(df_equip[df_equip[status_col] == 'MISSING']))
+        else:
+            st.warning(f"Kolum '{status_col}' tidak ditemui dalam sheet. Sila pastikan nama kolum betul.")
 
         # Filter Equipment
         search_eq = st.text_input("🔍 Cari Alat (SN, Nama, IP):", placeholder="Contoh: SGH...")
@@ -173,32 +178,29 @@ with tab2:
         if search_eq:
             df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
 
-        # Styling Row Equipment
-        def style_equip(val):
+        # Styling Row Equipment (Guna .map untuk Pandas baru)
+        def style_equip_val(val):
             if val == 'OK': return 'background-color: #D4EDDA; color: #155724'
             if val == 'FAULTY': return 'background-color: #FFF3CD; color: #856404'
             if val == 'MISSING': return 'background-color: #F8D7DA; color: #721C24'
             return ''
 
         st.dataframe(
-            df_eq_show.style.applymap(style_equip, subset=[status_col] if status_col in df_eq_show.columns else []),
+            df_eq_show.style.map(style_equip_val, subset=[status_col] if status_col in df_eq_show.columns else []),
             use_container_width=True,
             hide_index=True
         )
     else:
-        st.info("Sila masukkan URL CSV 'Status Equipment' yang sah.")
+        st.info("Sila pastikan URL Google Sheets di SHEET_EQUIP_URL dipasang dengan betul sebagai CSV.")
 
-# GRAF ANALITIK DI BAWAH
-st.divider()
-st.subheader("📊 Analitik Ringkas")
-c_pie, c_bar = st.columns(2)
-with c_pie:
-    if not df_raw.empty:
+# GRAF ANALITIK
+if not df_raw.empty:
+    st.divider()
+    st.subheader("📊 Analitik Ringkas")
+    c_pie, c_bar = st.columns(2)
+    with c_pie:
         fig1 = px.pie(df_raw, names='STATUS', title='Statistik Kelulusan Laporan', hole=0.4)
         st.plotly_chart(fig1, use_container_width=True)
-with c_bar:
-    if not df_raw.empty:
+    with c_bar:
         fig2 = px.histogram(df_raw, x='REPORT CHECKLIST', color='STATUS', title='Kekerapan Laporan mengikut Jenis')
         st.plotly_chart(fig2, use_container_width=True)
-
-
