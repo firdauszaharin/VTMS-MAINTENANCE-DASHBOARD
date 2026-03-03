@@ -2,196 +2,206 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
-import pytz 
-import os
+import pytz
 import re
+import os
 
-# 1. KONFIGURASI HALAMAN
+# 1. PAGE CONFIGURATION
 st.set_page_config(
-    page_title="VTMS Admin Dashboard",
+    page_title="VTMS Admin & Inventory Dashboard",
     layout="wide",
-    page_icon="📊"
+    page_icon="📊",
+    initial_sidebar_state="expanded"
 )
 
-# --- SET ZON MASA MALAYSIA ---
+# --- SET MALAYSIA TIMEZONE ---
 msia_tz = pytz.timezone('Asia/Kuala_Lumpur')
 waktu_msia = datetime.now(msia_tz)
 
+# 2. MODERN CSS
+st.markdown("""
+    <style>
+    .stApp { background-color: #FFFFFF; color: #2D3436; }
+    [data-testid="stMetric"] { 
+        background: #F8F9FA; padding: 15px; border-radius: 12px; 
+        border-top: 4px solid #0984E3; box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
+    }
+    .pdf-view-container { border: 2px solid #0984E3; border-radius: 12px; overflow: hidden; margin-top: 10px; }
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    </style>
+""", unsafe_allow_html=True)
 
-
-# --- 4. DATA LOADING ---
-# Pautan Google Sheets CSV (Publicly Shared as CSV)
-SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSEHHkyeSHjGBSi3wp-T5eE0vCZtgZ2mpWmUktMZiUHqfvb9Aow1r8OK_ZTq9wCQrxg62xTUX2DpgS_/pub?gid=296214979&single=true&output=csv"
+# 3. DATA LINKS (CSV FORMAT)
+SHEET_REPORT_URL = "https://docs.google.com/spreadsheets/d/1WB76n71wxMT3i5ZCaoCBIyb888il-qBydY8OEgC81Q8/export?format=csv&gid=296214979"
+SHEET_EQUIP_URL = "https://docs.google.com/spreadsheets/d/1QeQgEA--b1TX3Q8LPgmog7XP97Tg0dHSr3gIAAGXV4g/export?format=csv&gid=416421947"
 PDF_COL = "UPLOAD REPORT" 
 
+# 4. DATA LOAD FUNCTION
 @st.cache_data(ttl=60)
 def load_data(url):
     try:
-        data = pd.read_csv(url)
-        # Bersihkan nama kolum (elak isu whitespace dari Google Sheets)
+        data = pd.read_csv(url, on_bad_lines='skip')
         data.columns = data.columns.str.strip()
-        data['Timestamp'] = pd.to_datetime(data['Timestamp'])
-        data['Tahun'] = data['Timestamp'].dt.year
+        time_col = next((c for c in data.columns if any(x in c.lower() for x in ['timestamp', 'time', 'date', 'tarikh'])), None)
+        if time_col:
+            data[time_col] = pd.to_datetime(data[time_col], errors='coerce')
+            data['Year'] = data[time_col].dt.year
+        else:
+            data['Year'] = None
         return data
     except Exception as e:
-        st.error(f"Gagal memuatkan data dari Google Sheets: {e}")
         return pd.DataFrame()
 
-df_raw = load_data(SHEET_URL)
+df_raw = load_data(SHEET_REPORT_URL)
+df_equip = load_data(SHEET_EQUIP_URL)
 
-if df_raw.empty:
-    st.warning("⚠️ Menunggu data dari Google Sheets atau pautan tidak sah.")
-    st.stop()
+# --- REPORT ICON MAPPING ---
+icon_map = {
+    "MET REPORT": "https://cdn-icons-png.flaticon.com/512/1146/1146869.png",
+    "OPERATOR WORKSTATION": "https://cdn-icons-png.flaticon.com/512/689/689382.png",
+    "WALL DISPLAY REPORT": "https://cdn-icons-png.flaticon.com/512/1035/1035688.png",
+    "VHF PTP FLOOR 8": "https://cdn-icons-png.flaticon.com/512/3126/3126505.png",
+    "SERVER ROOM REPORT (PTP/LPJ)": "https://cdn-icons-png.flaticon.com/512/2333/2333241.png"
+}
 
-# Initialize Session States
 if "selected_row_idx" not in st.session_state:
     st.session_state.selected_row_idx = None
-if "prev_filter_state" not in st.session_state:
-    st.session_state.prev_filter_state = ""
 
-# --- 5. SIDEBAR NAVIGATION & FILTER ---
+# 5. SIDEBAR
 with st.sidebar:
     st.markdown("## 🛡️ VTMS ADMIN")
     if os.path.exists("logo.png"):
         st.image("logo.png", use_container_width=True)
-    
-    st.divider()
-
-    # --- BUTANG FOLDER GOOGLE DRIVE ---
-    st.markdown("### 📂 AKSES FAIL")
-    folder_url = "https://drive.google.com/drive/folders/1lG9eKZ69hpT6q-aqXpNxyd0HMcXdr3A4rAjUaXLCpDpOPffFzG0XK-MGBLaGHcBMcyqWjyLy?usp=drive_link"
-    st.link_button("📁 Buka Folder Laporan (Drive)", folder_url, use_container_width=True)
-    
     st.divider()
     
-    st.markdown("### 🔍 TAPISAN DATA")
-    
-    # Filter Tahun
-    tahun_list = sorted(df_raw['Tahun'].dropna().unique(), reverse=True)
-    sel_tahun = st.selectbox("📅 Pilih Tahun:", ["Semua Tahun"] + [int(t) for t in tahun_list])
-    
-    # Carian Report & Staff
-    search_report = st.text_input("🔎 Cari Jenis Report:", placeholder="MET, SERVER, etc...")
-    search_staff = st.text_input("👤 Cari Nama Staff:", placeholder="Nama staff...")
-    
-    # Logik Reset Preview jika filter berubah
-    current_filter = f"{sel_tahun}{search_report}{search_staff}"
-    if current_filter != st.session_state.prev_filter_state:
-        st.session_state.selected_row_idx = None
-        st.session_state.prev_filter_state = current_filter
-
-    st.divider()
-    # Butang Download CSV
-    st.markdown("### 📥 EKSPORT")
-    csv_export = df_raw.to_csv(index=False).encode('utf-8')
-    st.download_button("Download All Data (CSV)", csv_export, "VTMS_Data_Full.csv", "text/csv", use_container_width=True)
-
-# --- LOGIK PENAPISAN DATA ---
-df = df_raw.copy()
-if sel_tahun != "Semua Tahun":
-    df = df[df['Tahun'] == sel_tahun]
-if search_report:
-    df = df[df['REPORT CHECKLIST'].str.contains(search_report, case=False, na=False)]
-if search_staff:
-    df = df[df['Name'].str.contains(search_staff, case=False, na=False)]
-
-# Urutan masa terbaru
-display_df = df.sort_values(by="Timestamp", ascending=False).reset_index(drop=True)
-
-# --- 6. MAIN DASHBOARD ---
-st.title("📊 VTMS LPJ/PTP Report Management Dashboard")
-st.write(f"Paparan Data: **{sel_tahun}** | Masa Sistem: **{waktu_msia.strftime('%d/%m/%Y %H:%M')}**")
-
-st.divider()
-
-# Metrics Row
-m1, m2, m3, m4 = st.columns(4)
-m1.metric("Jumlah Laporan", len(display_df))
-m2.metric("Approved ✅", len(display_df[display_df['STATUS'] == 'APPROVED']) if 'STATUS' in display_df.columns else 0)
-m3.metric("Rejected ❌", len(display_df[display_df['STATUS'] == 'REJECTED']) if 'STATUS' in display_df.columns else 0)
-m4.metric("Jumlah Staff", display_df['Name'].nunique() if 'Name' in display_df.columns else 0)
-
-# --- 7. JADUAL INTERAKTIF ---
-st.subheader("📋 Rekod Laporan ")
-
-# Fungsi untuk warnakan cell STATUS
-def style_status(val):
-    if val == 'REJECTED':
-        return 'color: red; font-weight: bold;'
-    elif val == 'APPROVED':
-        return 'color: green; font-weight: bold;'
-    return ''
-
-# Apply styling pada dataframe
-styled_df = display_df.style.map(style_status, subset=['STATUS'])
-
-column_config = {}
-if PDF_COL in display_df.columns:
-    column_config[PDF_COL] = st.column_config.LinkColumn(
-        "Fail Report",
-        display_text="BUKA PDF 📄"
-    )
-
-# Render Jadual menggunakan styled_df
-event = st.dataframe(
-    styled_df,  # <--- Guna dataframe yang dah di-style
-    use_container_width=True,
-    height=400,
-    column_config=column_config,
-    on_select="rerun",
-    selection_mode="single-row",
-    hide_index=True
-)
-
-# --- 8. PDF PREVIEW LOGIK ---
-if st.session_state.selected_row_idx is not None:
-    idx = st.session_state.selected_row_idx
-    if idx < len(display_df):
-        row = display_df.iloc[idx]
-        link = row.get(PDF_COL, "")
+    st.markdown("### 🔍 REPORT FILTERS")
+    if not df_raw.empty and 'Year' in df_raw.columns:
+        year_list = sorted(df_raw['Year'].dropna().unique(), reverse=True)
+        sel_year = st.selectbox("📅 Select Year:", ["All Years"] + [int(t) for t in year_list])
+    else:
+        sel_year = st.selectbox("📅 Select Year:", ["All Years"])
         
-        st.markdown("---")
-        c_title, c_close = st.columns([0.9, 0.1])
-        with c_title:
-            st.subheader(f"📄 Preview Fail: {row.get('REPORT CHECKLIST', 'Laporan')}")
-        with c_close:
-            if st.button("❌ Tutup"):
-                st.session_state.selected_row_idx = None
-                st.rerun()
+    search_report = st.text_input("🔎 Report Type:", placeholder="MET, SERVER...")
+    search_staff = st.text_input("👤 Staff Name:")
+    
+    st.divider()
+    folder_url = "https://drive.google.com/drive/folders/1lG9eKZ69hpT6q-aqXpNxyd0HMcXdr3A4rAjUaXLCpDpOPffFzG0XK-MGBLaGHcBMcyqWjyLy"
+    st.link_button("📂 Open Drive Folder", folder_url, use_container_width=True)
 
-        if isinstance(link, str) and "drive.google.com" in link:
-            match = re.search(r'[-\w]{25,}', link)
-            if match:
-                file_id = match.group()
-                preview_url = f"https://drive.google.com/file/d/{file_id}/preview"
-                
-                # Paparan Iframe PDF
-                st.markdown(f'''
-                    <div class="pdf-view-container">
-                        <iframe src="{preview_url}" width="100%" height="800px"></iframe>
-                    </div>
-                ''', unsafe_allow_html=True)
-                
-                st.link_button("📥 Muat Turun Fail Original", link, use_container_width=True)
-            else:
-                st.error("Pautan fail Google Drive tidak sah.")
-        else:
-            st.warning("Tiada pautan fail PDF untuk rekod ini.")
+# 6. MAIN CONTENT
+st.title("📊 VTMS LPJ/PTP Management Dashboard")
 
-# --- 9. ANALITIK RINGKAS (GRAF) ---
-st.divider()
-col_pie, col_bar = st.columns(2)
+# DEFINISI TAB
+tab1, tab2 = st.tabs(["📝 Maintenance Reports", "⚙️ Equipment Status"])
 
-with col_pie:
-    if 'STATUS' in display_df.columns and not display_df.empty:
-        fig_pie = px.pie(display_df, names='STATUS', title='Statistik Kelulusan', hole=0.4,
-                         color_discrete_sequence=px.colors.qualitative.Pastel)
-        st.plotly_chart(fig_pie, use_container_width=True)
+# --- TAB 1: MAINTENANCE REPORTS ---
+with tab1:
+    if not df_raw.empty:
+        # Filter Data
+        df = df_raw.copy()
+        if sel_year != "All Years": df = df[df['Year'] == sel_year]
+        if search_report: df = df[df['REPORT CHECKLIST'].str.contains(search_report, case=False, na=False)]
+        if search_staff: df = df[df['Name'].str.contains(search_staff, case=False, na=False)]
+        
+        time_col = next((c for c in df.columns if any(x in c.lower() for x in ['timestamp', 'time', 'date', 'tarikh'])), None)
+        display_df = df.sort_values(by=time_col, ascending=False).reset_index(drop=True) if time_col else df.reset_index(drop=True)
+        
+        # Metrics
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Total Reports", len(display_df))
+        m2.metric("Approved ✅", len(display_df[display_df['STATUS'] == 'APPROVED']) if 'STATUS' in display_df.columns else 0)
+        m3.metric("Rejected ❌", len(display_df[display_df['STATUS'] == 'REJECTED']) if 'STATUS' in display_df.columns else 0)
+        m4.metric("Active Staff", display_df['Name'].nunique() if 'Name' in display_df.columns else 0)
 
-with col_bar:
-    if 'REPORT CHECKLIST' in display_df.columns and not display_df.empty:
-        counts = display_df['REPORT CHECKLIST'].value_counts().reset_index()
-        counts.columns = ['Jenis', 'Bil']
-        fig_bar = px.bar(counts, x='Jenis', y='Bil', title='Kekerapan Jenis Laporan',
-                         color='Jenis', text='Bil')
-        st.plotly_chart(fig_bar, use_container_width=True)
+        # PERFORMANCE OVERVIEW (REPORT ONLY)
+        st.markdown("### 🎯 Maintenance Performance Overview")
+        col_p, col_b = st.columns(2)
+        with col_p:
+            st.plotly_chart(px.pie(display_df, names='STATUS', title='Approval Status Distribution', hole=0.4, 
+                                  color_discrete_map={'APPROVED':'#2ecc71', 'REJECTED':'#e74c3c'}), use_container_width=True)
+        with col_b:
+            st.plotly_chart(px.histogram(display_df, x='REPORT CHECKLIST', color='STATUS', title='Report Frequency by Type',
+                                         color_discrete_map={'APPROVED':'#2ecc71', 'REJECTED':'#e74c3c'}), use_container_width=True)
+
+        st.divider()
+
+        # Table & Preview
+        st.subheader("📋 Submitted Reports Record")
+        if 'REPORT CHECKLIST' in display_df.columns:
+            display_df.insert(0, 'ICON', display_df['REPORT CHECKLIST'].map(icon_map).fillna("https://cdn-icons-png.flaticon.com/512/2991/2991108.png"))
+
+        event = st.dataframe(display_df, use_container_width=True, hide_index=True,
+                            column_config={
+                                "ICON": st.column_config.ImageColumn("Type"), 
+                                PDF_COL: st.column_config.LinkColumn("Report File", display_text="OPEN PDF 📄")
+                            },
+                            on_select="rerun", selection_mode="single-row")
+
+        if len(event.selection.rows) > 0:
+            st.session_state.selected_row_idx = event.selection.rows[0]
+
+        if st.session_state.selected_row_idx is not None:
+            idx = st.session_state.selected_row_idx
+            row = display_df.iloc[idx]
+            link = row.get(PDF_COL, "")
+            if isinstance(link, str) and "drive.google.com" in link:
+                file_id = re.search(r'[-\w]{25,}', link).group()
+                st.markdown(f'<div class="pdf-view-container"><iframe src="https://drive.google.com/file/d/{file_id}/preview" width="100%" height="600px"></iframe></div>', unsafe_allow_html=True)
+    else:
+        st.error("Failed to load Report data.")
+
+# --- TAB 2: EQUIPMENT STATUS ---
+with tab2:
+    if not df_equip.empty:
+        st.subheader("⚙️ Inventory & Equipment Status")
+        month_cols = [c for c in df_equip.columns if any(yr in c for yr in ["2025", "2026"])]
+        
+        c_sel, _ = st.columns([0.4, 0.6])
+        with c_sel:
+            selected_month = st.selectbox("📅 Select Report Month:", month_cols, index=len(month_cols)-1)
+        
+        st.divider()
+
+        if selected_month in df_equip.columns:
+            # Data Processing
+            status_series = df_equip[selected_month].astype(str).str.strip().str.upper()
+            df_pie = df_equip.copy()
+            df_pie[selected_month] = status_series
+            
+            # Metrics
+            me1, me2, me3 = st.columns(3)
+            me1.metric(f"Equipment OK", len(df_equip[status_series == 'OK']))
+            me2.metric(f"Faulty ⚠️", len(df_equip[status_series == 'FAULTY']))
+            me3.metric(f"Missing ❌", len(df_equip[status_series == 'MISSING']))
+
+            # PERFORMANCE OVERVIEW (EQUIPMENT ONLY)
+            st.markdown(f"### 🎯 Equipment Performance Overview ({selected_month})")
+            col_left, col_right = st.columns(2)
+            with col_left:
+                st.plotly_chart(px.pie(df_pie, names=selected_month, title='Condition Overview',
+                                      color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}), use_container_width=True)
+            with col_right:
+                if 'Site' in df_pie.columns:
+                    st.plotly_chart(px.histogram(df_pie, x='Site', color=selected_month, barmode='group', title='Status by Location',
+                                                color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}), use_container_width=True)
+            
+            if 'Type' in df_pie.columns:
+                st.plotly_chart(px.histogram(df_pie, x='Type', color=selected_month, barmode='group', title='Status by Equipment Category',
+                                            color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}), use_container_width=True)
+            
+            st.divider()
+
+            # Inventory Table
+            st.subheader("📦 Inventory Asset List")
+            search_eq = st.text_input("🔍 Search Asset (SN, Name, Site):", key="search_eq_tab")
+            essential_cols = ["Site", "Type", "Serial No", "IP Address", selected_month]
+            df_eq_show = df_equip[[c for c in essential_cols if c in df_equip.columns]].copy()
+            
+            if search_eq:
+                df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
+
+            st.dataframe(df_eq_show.style.map(lambda x: 'background-color: #D4EDDA' if x=='OK' else ('background-color: #F8D7DA' if x=='MISSING' else ('background-color: #FFF3CD' if x=='FAULTY' else '')), subset=[selected_month]), use_container_width=True, hide_index=True)
+    else:
+        st.error("Failed to load Equipment data.")
+
