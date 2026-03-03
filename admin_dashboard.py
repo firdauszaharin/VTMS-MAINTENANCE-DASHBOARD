@@ -114,6 +114,17 @@ m4.metric("Jumlah Staff", display_df['Name'].nunique() if 'Name' in display_df.c
 # --- 7. JADUAL INTERAKTIF ---
 st.subheader("📋 Rekod Laporan (Klik baris untuk Preview)")
 
+# Fungsi untuk warnakan cell STATUS
+def style_status(val):
+    if val == 'REJECTED':
+        return 'color: red; font-weight: bold;'
+    elif val == 'APPROVED':
+        return 'color: green; font-weight: bold;'
+    return ''
+
+# Apply styling pada dataframe
+styled_df = display_df.style.map(style_status, subset=['STATUS'])
+
 column_config = {}
 if PDF_COL in display_df.columns:
     column_config[PDF_COL] = st.column_config.LinkColumn(
@@ -121,9 +132,9 @@ if PDF_COL in display_df.columns:
         display_text="BUKA PDF 📄"
     )
 
-# Render Jadual
+# Render Jadual menggunakan styled_df
 event = st.dataframe(
-    display_df,
+    styled_df,  # <--- Guna dataframe yang dah di-style
     use_container_width=True,
     height=400,
     column_config=column_config,
@@ -131,10 +142,6 @@ event = st.dataframe(
     selection_mode="single-row",
     hide_index=True
 )
-
-# Ambil index baris yang dipilih
-if len(event.selection.rows) > 0:
-    st.session_state.selected_row_idx = event.selection.rows[0]
 
 # --- 8. PDF PREVIEW LOGIK ---
 if st.session_state.selected_row_idx is not None:
@@ -188,6 +195,7 @@ with col_bar:
         fig_bar = px.bar(counts, x='Jenis', y='Bil', title='Kekerapan Jenis Laporan',
                          color='Jenis', text='Bil')
         st.plotly_chart(fig_bar, use_container_width=True)
+
 
 
 
