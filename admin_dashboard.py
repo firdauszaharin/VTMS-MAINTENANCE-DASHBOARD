@@ -17,26 +17,7 @@ st.set_page_config(
 msia_tz = pytz.timezone('Asia/Kuala_Lumpur')
 waktu_msia = datetime.now(msia_tz)
 
-# 2. CSS MODEN (CLEAN & PROFESSIONAL)
-st.markdown("""
-    <style>
-    .stApp { background-color: #FFFFFF; color: #2D3436; }
-    h1 { color: #0984E3 !important; font-family: 'Segoe UI', sans-serif; font-weight: 800; }
-    /* Dashboard Cards */
-    div[data-testid="stMetric"] { 
-        background: #F8F9FA; padding: 20px; border-radius: 12px; 
-        border-top: 4px solid #0984E3; box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
-    }
-    /* PDF Container */
-    .pdf-view-container { 
-        border: 2px solid #0984E3; border-radius: 12px; overflow: hidden; 
-        margin-top: 10px; background-color: #f1f2f6; 
-    }
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    </style>
-""", unsafe_allow_html=True)
+
 
 # --- 4. DATA LOADING ---
 # Pautan Google Sheets CSV (Publicly Shared as CSV)
@@ -207,4 +188,5 @@ with col_bar:
         fig_bar = px.bar(counts, x='Jenis', y='Bil', title='Kekerapan Jenis Laporan',
                          color='Jenis', text='Bil')
         st.plotly_chart(fig_bar, use_container_width=True)
+
 
