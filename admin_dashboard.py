@@ -149,7 +149,32 @@ with st.sidebar:
 
 # 6. EXECUTIVE SUMMARY
 st.title("EDM VTMS LPJ/PTP Management Dashboard")
+st.markdown("""
+    <div class="header-container">
+        <div>
+            <img src="https://cdn-icons-png.flaticon.com/512/1063/1063140.png" 
+                 style="height: 50px; filter: brightness(0) invert(1); margin-bottom: 10px;">
+            <div style="font-size: 28px; font-weight: 800; line-height: 1;">EDM VTMS LPJ/PTP</div>
+            <div style="font-size: 18px; opacity: 0.8; font-weight: 300;">Management Dashboard</div>
+        </div>
+        <div style="text-align: right; border-left: 1px solid rgba(255,255,255,0.3); padding-left: 25px;">
+            <div id="live_clock" style="font-family: monospace; font-size: 40px; font-weight: 900;">00:00:00</div>
+            <div id="live_date" style="font-size: 14px; opacity: 0.8; text-transform: uppercase;"></div>
+        </div>
+    </div>
 
+    <script>
+    function updateClock() {
+        const now = new Date();
+        const tStr = now.toLocaleTimeString('en-GB', { hour12: false });
+        const dStr = now.toLocaleDateString('ms-MY', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+        document.getElementById('live_clock').innerText = tStr;
+        document.getElementById('live_date').innerText = dStr;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+    </script>
+""", unsafe_allow_html=True)
 if not df_equip.empty:
     month_cols = [c for c in df_equip.columns if any(yr in c for yr in ["2025", "2026"])]
     latest_month = month_cols[-1] if month_cols else None
@@ -345,6 +370,7 @@ with tab2:
                 df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
 
             st.dataframe(df_eq_show.style.map(lambda x: 'background-color: #D4EDDA' if x=='OK' else ('background-color: #F8D7DA' if x=='MISSING' else ('background-color: #FFF3CD' if x=='FAULTY' else '')), subset=[selected_month]), use_container_width=True, hide_index=True)
+
 
 
 
