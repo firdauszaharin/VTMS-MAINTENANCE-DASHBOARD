@@ -78,10 +78,14 @@ st.markdown("""
         margin-bottom: 25px;
     }
 
-    /* 6. Hilangkan Element Tak Perlu */
+    /* 6. Kemaskan Ruang (Tanpa Hilangkan Butang Sidebar) */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
+    
+    /* Ini akan menyembunyikan background putih header tapi kekalkan butang sidebar */
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -286,5 +290,6 @@ with tab2:
                 df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
 
             st.dataframe(df_eq_show.style.map(lambda x: 'background-color: #D4EDDA' if x=='OK' else ('background-color: #F8D7DA' if x=='MISSING' else ('background-color: #FFF3CD' if x=='FAULTY' else '')), subset=[selected_month]), use_container_width=True, hide_index=True)
+
 
 
