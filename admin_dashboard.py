@@ -95,60 +95,35 @@ with st.sidebar:
     st.link_button("📂 Open Drive Folder", "https://drive.google.com/drive/folders/1lG9eKZ69hpT6q-aqXpNxyd0HMcXdr3A4jUaXLCpDpOPffFzG0XK-MGBLaGHcBMcyqWjyLy", use_container_width=True)
 
 # --- 6. EXECUTIVE SUMMARY (WITH FIXED LIVE CLOCK) ---
+# --- DIGITAL CLOCK (REAL-TIME) ---
 st.markdown("""
     <div style="
-        background: linear-gradient(90deg, #0984E3, #6c5ce7);
-        padding: 20px 30px;
-        border-radius: 15px;
+        background: #1E1E1E; 
+        padding: 20px; 
+        border-radius: 15px; 
+        text-align: center; 
+        border: 2px solid #0984E3;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         margin-bottom: 25px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        min-height: 120px;
     ">
-        <div style="flex: 1;">
-            <h1 style="
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                color: white;
-                font-size: 28px;
-                font-weight: 800;
-                margin: 0;
-                text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-            ">
-                VTMS LPJ/PTP <span style="font-weight: 300; opacity: 0.9;">Management</span>
-            </h1>
-            <p style="color: white; margin: 5px 0 0 0; opacity: 0.8; font-size: 13px;">
-                Vessel Traffic Management System | Administration & Inventory
-            </p>
-        </div>
-        
-        <div style="
-            text-align: right; 
-            border-left: 2px solid rgba(255,255,255,0.3); 
-            padding-left: 30px;
-        ">
-            <h2 id="clock" style="
-                color: white; 
-                margin: 0; 
-                font-family: 'Courier New', monospace; 
-                font-size: 35px; 
-                font-weight: 900;
-                line-height: 1;
-            ">00:00:00</h2>
-            <p id="date" style="
-                color: rgba(255,255,255,0.8); 
-                margin: 5px 0 0 0; 
-                font-size: 14px; 
-                text-transform: uppercase;
-                font-weight: 600;
-            "></p>
-        </div>
+        <p style="color: #0984E3; margin: 0; font-size: 14px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase;">
+            Live System Time (Kuala Lumpur)
+        </p>
+        <h2 id="clock" style="
+            color: #FFFFFF; 
+            margin: 10px 0; 
+            font-family: 'Courier New', monospace; 
+            font-size: 50px; 
+            font-weight: 900;
+        ">00:00:00</h2>
+        <p id="date" style="color: #ADBAC7; margin: 0; font-size: 18px; font-weight: 500;"></p>
     </div>
 
     <script>
     function updateClock() {
         const now = new Date();
+        
+        // Format Masa (HH:mm:ss)
         const timeOptions = { 
             timeZone: "Asia/Kuala_Lumpur", 
             hour12: false, 
@@ -156,21 +131,25 @@ st.markdown("""
             minute: '2-digit', 
             second: '2-digit' 
         };
+        
+        // Format Tarikh (Hari, Tarikh Bulan Tahun)
         const dateOptions = { 
             timeZone: "Asia/Kuala_Lumpur", 
-            weekday: 'short', 
+            weekday: 'long', 
             day: 'numeric', 
-            month: 'short', 
+            month: 'long', 
             year: 'numeric' 
         };
         
         const timeString = new Intl.DateTimeFormat('en-GB', timeOptions).format(now);
         const dateString = new Intl.DateTimeFormat('ms-MY', dateOptions).format(now);
         
+        // Masukkan ke dalam HTML
         document.getElementById('clock').textContent = timeString;
         document.getElementById('date').textContent = dateString;
     }
-    // Update setiap 1 saat
+    
+    // Jalankan setiap 1 saat
     setInterval(updateClock, 1000);
     updateClock();
     </script>
@@ -291,4 +270,5 @@ with tab2:
                 df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
 
             st.dataframe(df_eq_show.style.map(lambda x: 'background-color: #D4EDDA' if x=='OK' else ('background-color: #F8D7DA' if x=='MISSING' else ('background-color: #FFF3CD' if x=='FAULTY' else '')), subset=[selected_month]), use_container_width=True, hide_index=True)
+
 
