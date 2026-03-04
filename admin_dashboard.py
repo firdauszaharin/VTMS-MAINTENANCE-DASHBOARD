@@ -39,7 +39,7 @@ st.markdown("""
 # 3. DATA LINKS
 SHEET_REPORT_URL = "https://docs.google.com/spreadsheets/d/1WB76n71wxMT3i5ZCaoCBIyb888il-qBydY8OEgC81Q8/export?format=csv&gid=296214979"
 SHEET_EQUIP_URL = "https://docs.google.com/spreadsheets/d/1QeQgEA--b1TX3Q8LPgmog7XP97Tg0dHSr3gIAAGXV4g/export?format=csv&gid=416421947"
-PDF_COL = "UPLOAD REPORT" 
+PDF_COL = "UPLOAD REPORT"
 
 # 4. DATA LOAD FUNCTION
 @st.cache_data(ttl=60)
@@ -74,7 +74,7 @@ if "selected_row_idx" not in st.session_state:
 
 # 5. SIDEBAR
 with st.sidebar:
-    st.markdown("##  VTMS DEPARTMENT")
+    st.markdown("## VTMS DEPARTMENT")
     if os.path.exists("logo.png"):
         st.image("logo.png", use_container_width=True)
     st.divider()
@@ -94,7 +94,7 @@ with st.sidebar:
     st.divider()
     st.link_button("📂 Open Drive Folder", "https://drive.google.com/drive/folders/1lG9eKZ69hpT6q-aqXpNxyd0HMcXdr3A4jUaXLCpDpOPffFzG0XK-MGBLaGHcBMcyqWjyLy", use_container_width=True)
 
-# --- 6. EXECUTIVE SUMMARY (WITH INTEGRATED LIVE CLOCK) ---
+# 6. EXECUTIVE SUMMARY (WITH INTEGRATED LIVE CLOCK)
 st.markdown("""
     <div style="
         background: linear-gradient(90deg, #0984E3, #6c5ce7);
@@ -175,10 +175,26 @@ st.markdown("""
     </script>
 """, unsafe_allow_html=True)
 
+# ALERTS SECTION
+if not df_equip.empty:
+    month_cols = [c for c in df_equip.columns if any(yr in str(c) for yr in ["2025", "2026"])]
+    latest_month = month_cols[-1] if month_cols else None
+    
+    if latest_month:
+        status_check = df_equip[latest_month].astype(str).str.strip().str.upper()
+        faulty_data = df_equip[status_check.isin(['FAULTY', 'MISSING'])]
+        
+        if len(faulty_data) > 0:
+            st.markdown(f"""
+            <div class="alert-box">
+                <h4 style="margin:0; color:#FF4B4B;">⚠️ SYSTEM ALERT: {len(faulty_data)} ISSUES DETECTED</h4>
+                <p style="margin:5px 0 0 0;">Immediate attention required for assets marked as FAULTY or MISSING in {latest_month}.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
 # 7. MAIN CONTENT TABS
 tab1, tab2 = st.tabs(["📝 Maintenance Reports", "⚙️ Equipment Status"])
 
-# --- TAB 1: MAINTENANCE REPORTS ---
 with tab1:
     if not df_raw.empty:
         df = df_raw.copy()
@@ -195,109 +211,59 @@ with tab1:
         m3.metric("Rejected ❌", len(display_df[display_df['STATUS'] == 'REJECTED']) if 'STATUS' in display_df.columns else 0)
         m4.metric("Pending ⏳", len(display_df[~display_df['STATUS'].isin(['APPROVED', 'REJECTED'])]) if 'STATUS' in display_df.columns else 0)
 
-        st.markdown("### 🎯 Maintenance Performance Overview")
-        col_p, col_b = st.columns(2)
-        with col_p:
-            st.plotly_chart(px.pie(display_df, names='STATUS', title='Approval Status Distribution', hole=0.4, 
-                                  color_discrete_map={'APPROVED':'#2ecc71', 'REJECTED':'#e74c3c'}), use_container_width=True)
-        with col_b:
-            st.plotly_chart(px.histogram(display_df, x='REPORT CHECKLIST', color='STATUS', title='Report Frequency by Type',
-                                         color_discrete_map={'APPROVED':'#2ecc71', 'REJECTED':'#e74c3c'}), use_container_width=True)
-
         st.divider()
         st.subheader("📋 Submitted Reports Record")
         
-        def highlight_status(val):
-            if val == 'REJECTED': return 'background-color: #F8D7DA; color: #721C24;'
-            if val == 'APPROVED': return 'background-color: #D4EDDA; color: #155724;'
-            return ''
-
         if 'REPORT CHECKLIST' in display_df.columns:
-            display_df.insert(0, 'ICON', display_df['REPORT CHECKLIST'].map(icon_map).fillna("https://cdn-icons-png.flaticon.com/512/2991/2991108.png"))
+            # Prevent re-insertion if app reruns
+            if 'ICON' not in display_df.columns:
+                display_df.insert(0, 'ICON', display_df['REPORT CHECKLIST'].map(icon_map).fillna("https://cdn-icons-png.flaticon.com/512/2991/2991108.png"))
 
-        styled_df = display_df.style.map(highlight_status, subset=['STATUS']) if 'STATUS' in display_df.columns else display_df
-
-        event = st.dataframe(styled_df, use_container_width=True, hide_index=True,
-                            column_config={
-                                "ICON": st.column_config.ImageColumn("Type"), 
-                                PDF_COL: st.column_config.LinkColumn("Report File", display_text="OPEN PDF 📄")
-                            },
-                            on_select="rerun", selection_mode="single-row")
+        event = st.dataframe(
+            display_df, 
+            use_container_width=True, 
+            hide_index=True,
+            column_config={
+                "ICON": st.column_config.ImageColumn("Type"), 
+                PDF_COL: st.column_config.LinkColumn("Report File", display_text="OPEN PDF 📄")
+            },
+            on_select="rerun", 
+            selection_mode="single-row"
+        )
 
         if len(event.selection.rows) > 0:
             st.session_state.selected_row_idx = event.selection.rows[0]
 
         if st.session_state.selected_row_idx is not None:
             idx = st.session_state.selected_row_idx
-            row = display_df.iloc[idx]
-            link = row.get(PDF_COL, "")
-            if isinstance(link, str) and "drive.google.com" in link:
-                file_id = re.search(r'[-\w]{25,}', link).group()
-                st.markdown(f'<div class="pdf-view-container"><iframe src="https://drive.google.com/file/d/{file_id}/preview" width="100%" height="600px"></iframe></div>', unsafe_allow_html=True)
+            if idx < len(display_df):
+                row = display_df.iloc[idx]
+                link = row.get(PDF_COL, "")
+                if isinstance(link, str) and "drive.google.com" in link:
+                    try:
+                        file_id = re.search(r'[-\w]{25,}', link).group()
+                        st.markdown(f'<div class="pdf-view-container"><iframe src="https://drive.google.com/file/d/{file_id}/preview" width="100%" height="600px"></iframe></div>', unsafe_allow_html=True)
+                    except:
+                        st.error("Gagal mengekstrak ID fail Google Drive.")
 
-# --- TAB 2: EQUIPMENT STATUS ---
 with tab2:
     if not df_equip.empty:
         st.subheader("⚙️ Inventory & Equipment Status")
-        month_cols = [c for c in df_equip.columns if any(yr in c for yr in ["2025", "2026"])]
+        month_cols = [c for c in df_equip.columns if any(yr in str(c) for yr in ["2025", "2026"])]
         
-        c_sel, _ = st.columns([0.4, 0.6])
-        with c_sel:
-            selected_month = st.selectbox("📅 Select Report Month:", month_cols, index=len(month_cols)-1)
-        
-        st.divider()
-
-        if selected_month in df_equip.columns:
-            status_series = df_equip[selected_month].astype(str).str.strip().str.upper()
-            df_pie = df_equip.copy()
-            df_pie[selected_month] = status_series
-            
-            me1, me2, me3 = st.columns(3)
-            me1.metric(f"Equipment OK", len(df_equip[status_series == 'OK']))
-            me2.metric(f"Faulty ⚠️", len(df_equip[status_series == 'FAULTY']))
-            me3.metric(f"Missing ❌", len(df_equip[status_series == 'MISSING']))
-
-            st.markdown(f"### 🎯 Equipment Performance Overview ({selected_month})")
-            
-            # SUSUNAN DONUT DAN HISTOGRAM
-            col_left, col_right = st.columns(2)
-            
-            with col_left:
-                fig_donut = px.pie(
-                    df_pie, 
-                    names=selected_month, 
-                    title='Condition Overview',
-                    hole=0.55, 
-                    color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}
-                )
-                fig_donut.update_traces(textposition='inside', textinfo='percent+label')
-                st.plotly_chart(fig_donut, use_container_width=True)
-
-            with col_right:
-                if 'Site' in df_pie.columns:
-                    st.plotly_chart(px.histogram(df_pie, x='Site', color=selected_month, barmode='group', title='Status by Location',
-                                                color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}), use_container_width=True)
-            
-            if 'Type' in df_pie.columns:
-                st.plotly_chart(px.histogram(df_pie, x='Type', color=selected_month, barmode='group', title='Status by Equipment Category',
-                                            color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}), use_container_width=True)
+        if month_cols:
+            c_sel, _ = st.columns([0.4, 0.6])
+            with c_sel:
+                selected_month = st.selectbox("📅 Select Report Month:", month_cols, index=len(month_cols)-1)
             
             st.divider()
-            st.subheader("📦 Inventory Asset List")
-            search_eq = st.text_input("🔍 Search Asset (SN, Name, Site):", key="search_eq_tab")
-            essential_cols = ["Site", "Type", "Serial No", "IP Address", selected_month]
-            df_eq_show = df_equip[[c for c in essential_cols if c in df_equip.columns]].copy()
+            status_series = df_equip[selected_month].astype(str).str.strip().str.upper()
             
-            if search_eq:
-                df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
+            me1, me2, me3 = st.columns(3)
+            me1.metric("Equipment OK", len(df_equip[status_series == 'OK']))
+            me2.metric("Faulty ⚠️", len(df_equip[status_series == 'FAULTY']))
+            me3.metric("Missing ❌", len(df_equip[status_series == 'MISSING']))
 
-            st.dataframe(df_eq_show.style.map(lambda x: 'background-color: #D4EDDA' if x=='OK' else ('background-color: #F8D7DA' if x=='MISSING' else ('background-color: #FFF3CD' if x=='FAULTY' else '')), subset=[selected_month]), use_container_width=True, hide_index=True)
-
-
-
-
-
-
-
-
-
+            st.dataframe(df_equip, use_container_width=True, hide_index=True)
+    else:
+        st.info("Tiada data inventory dijumpai.")
