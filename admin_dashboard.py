@@ -74,7 +74,7 @@ if "selected_row_idx" not in st.session_state:
 
 # 5. SIDEBAR
 with st.sidebar:
-    st.markdown("##  VTMS ADMIN")
+    st.markdown("##  VTMS DEPARTMENT")
     if os.path.exists("logo.png"):
         st.image("logo.png", use_container_width=True)
     st.divider()
@@ -118,6 +118,55 @@ st.markdown("""
             Vessel Traffic Management System | Administration & Asset Inventory Control
         </p>
     </div>
+""", unsafe_allow_html=True)
+# --- TAMBAHAN: DIGITAL CLOCK (REAL-TIME MALAYSIA) ---
+st.markdown("""
+    <div style="
+        background: #2D3436; 
+        padding: 15px; 
+        border-radius: 12px; 
+        text-align: center; 
+        margin-top: -15px;
+        margin-bottom: 25px;
+        border-left: 8px solid #0984E3;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    ">
+        <p style="color: #0984E3; margin: 0; font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;">
+            Live System Time (Kuala Lumpur)
+        </p>
+        <h2 id="clock" style="color: #FFFFFF; margin: 5px 0; font-family: 'Courier New', monospace; font-size: 40px; font-weight: bold; text-shadow: 0 0 10px rgba(9, 132, 227, 0.5);">
+            00:00:00
+        </h2>
+        <p id="date" style="color: #ADBAC7; margin: 0; font-size: 16px; font-weight: 500;"></p>
+    </div>
+
+    <script>
+    function updateClock() {
+        const now = new Date();
+        const timeOptions = { 
+            timeZone: "Asia/Kuala_Lumpur", 
+            hour12: false, 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            second: '2-digit' 
+        };
+        const dateOptions = { 
+            timeZone: "Asia/Kuala_Lumpur", 
+            weekday: 'long', 
+            day: 'numeric', 
+            month: 'long', 
+            year: 'numeric' 
+        };
+        
+        const timeString = new Intl.DateTimeFormat('en-GB', timeOptions).format(now);
+        const dateString = new Intl.DateTimeFormat('ms-MY', dateOptions).format(now);
+        
+        document.getElementById('clock').textContent = timeString;
+        document.getElementById('date').textContent = dateString;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+    </script>
 """, unsafe_allow_html=True)
 if not df_equip.empty:
     month_cols = [c for c in df_equip.columns if any(yr in c for yr in ["2025", "2026"])]
@@ -259,6 +308,7 @@ with tab2:
                 df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
 
             st.dataframe(df_eq_show.style.map(lambda x: 'background-color: #D4EDDA' if x=='OK' else ('background-color: #F8D7DA' if x=='MISSING' else ('background-color: #FFF3CD' if x=='FAULTY' else '')), subset=[selected_month]), use_container_width=True, hide_index=True)
+
 
 
 
