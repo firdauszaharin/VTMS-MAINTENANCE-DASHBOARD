@@ -21,53 +21,45 @@ waktu_msia = datetime.now(msia_tz)
 # 2. MODERN CSS (UI MODEN 2026)
 st.markdown("""
     <style>
+    /* Latar belakang utama */
     .stApp {
-        background: radial-gradient(circle at top right, #f8faff, #eef2f7);
+        background: #f8faff;
         font-family: 'Inter', sans-serif;
     }
 
-    /* --- SIDEBAR ZAKAT COLOR SCHEME --- */
+    /* --- SIDEBAR CUSTOM COLOR (#1e1e2e) --- */
     [data-testid="stSidebar"] {
-        background-color: #005d32 !important; /* Hijau Korporat Zakat */
-        border-right: 4px solid #f9c311 !important; /* Kuning Zakat */
+        background-color: #1e1e2e !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
     }
 
-    /* Tukar semua teks sidebar jadi putih */
+    /* Warna Teks Sidebar */
     [data-testid="stSidebar"] * {
-        color: white !important;
+        color: #cdd6f4 !important;
     }
 
-    /* Warna Divider dlm sidebar */
-    [data-testid="stSidebar"] hr {
-        border-color: rgba(255, 255, 0, 0.3) !important;
-    }
-
-    /* Input Box dlm Sidebar */
+    /* Warna Input & Selectbox dlm Sidebar */
     [data-testid="stSidebar"] .stTextInput input, 
     [data-testid="stSidebar"] div[data-baseweb="select"] > div {
-        background-color: rgba(255, 255, 255, 0.15) !important;
-        border: 1px solid #f9c311 !important;
+        background-color: rgba(255, 255, 255, 0.07) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
         color: white !important;
     }
 
-    /* --- UI COMPONENTS LAIN --- */
+    /* --- LAIN-LAIN UI --- */
     [data-testid="stMetric"] {
         background: white !important;
         padding: 20px !important;
-        border-radius: 20px !important;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.03) !important;
-        border: 1px solid rgba(0,0,0,0.05) !important;
+        border-radius: 15px !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
     }
 
     .stTabs [aria-selected="true"] {
-        background: #005d32 !important; /* Tab terpilih guna hijau zakat */
+        background: #1e1e2e !important; /* Tab ikut warna sidebar */
         color: white !important;
     }
 
-    header[data-testid="stHeader"] {
-        background: transparent !important;
-    }
-    
+    header[data-testid="stHeader"] { background: transparent !important; }
     footer {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
@@ -328,6 +320,7 @@ with tab2:
                 df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
 
             st.dataframe(df_eq_show.style.map(lambda x: 'background-color: #D4EDDA' if x=='OK' else ('background-color: #F8D7DA' if x=='MISSING' else ('background-color: #FFF3CD' if x=='FAULTY' else '')), subset=[selected_month]), use_container_width=True, hide_index=True)
+
 
 
 
