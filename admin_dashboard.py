@@ -18,21 +18,70 @@ st.set_page_config(
 msia_tz = pytz.timezone('Asia/Kuala_Lumpur')
 waktu_msia = datetime.now(msia_tz)
 
-# 2. MODERN CSS
+# 2. MODERN CSS (UI MODEN 2026)
 st.markdown("""
     <style>
-    .stApp { background-color: #FFFFFF; color: #2D3436; }
-    [data-testid="stMetric"] { 
-        background: #F8F9FA; padding: 15px; border-radius: 12px; 
-        border-top: 4px solid #0984E3; box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
+    /* 1. Latar Belakang Gradient & Font */
+    .stApp {
+        background: radial-gradient(circle at top right, #f8faff, #eef2f7);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
+
+    /* 2. Glassmorphism untuk Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: rgba(255, 255, 255, 0.8) !important;
+        backdrop-filter: blur(10px);
+        border-right: 1px solid rgba(0,0,0,0.05);
+    }
+
+    /* 3. Kotak Metric yang 'Floating' */
+    [data-testid="stMetric"] {
+        background: white !important;
+        padding: 20px !important;
+        border-radius: 20px !important;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.03) !important;
+        border: 1px solid rgba(0,0,0,0.05) !important;
+        transition: transform 0.3s ease;
+    }
+    
+    [data-testid="stMetric"]:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(9, 132, 227, 0.1) !important;
+    }
+
+    /* 4. Tajuk dan Tab yang Kemas */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+        background-color: transparent;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        height: 45px;
+        background-color: white;
+        border-radius: 10px;
+        padding: 0px 20px;
+        border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: #0984E3 !important;
+        color: white !important;
+    }
+
+    /* 5. Custom Alert Box (Modern Flat Design) */
     .alert-box {
-        background-color: #FFF5F5; border-left: 5px solid #FF4B4B;
-        padding: 15px; border-radius: 8px; margin-bottom: 20px;
+        background: #FFFFFF;
+        border-left: 6px solid #FF4B4B;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(255, 75, 75, 0.1);
+        margin-bottom: 25px;
     }
-    .pdf-view-container { border: 2px solid #0984E3; border-radius: 12px; overflow: hidden; margin-top: 10px; }
+
+    /* 6. Hilangkan Element Tak Perlu */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
+    header {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
 
@@ -237,4 +286,5 @@ with tab2:
                 df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
 
             st.dataframe(df_eq_show.style.map(lambda x: 'background-color: #D4EDDA' if x=='OK' else ('background-color: #F8D7DA' if x=='MISSING' else ('background-color: #FFF3CD' if x=='FAULTY' else '')), subset=[selected_month]), use_container_width=True, hide_index=True)
+
 
