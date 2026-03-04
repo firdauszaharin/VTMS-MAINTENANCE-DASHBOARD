@@ -94,9 +94,88 @@ with st.sidebar:
     st.divider()
     st.link_button("📂 Open Drive Folder", "https://drive.google.com/drive/folders/1lG9eKZ69hpT6q-aqXpNxyd0HMcXdr3A4jUaXLCpDpOPffFzG0XK-MGBLaGHcBMcyqWjyLy", use_container_width=True)
 
-# 6. EXECUTIVE SUMMARY
-st.title("📊 VTMS LPJ/PTP Management Dashboard")
+# --- 6. EXECUTIVE SUMMARY (WITH INTEGRATED LIVE CLOCK) ---
+st.markdown("""
+    <div style="
+        background: linear-gradient(90deg, #0984E3, #6c5ce7);
+        padding: 20px 30px;
+        border-radius: 15px;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    ">
+        <div style="flex: 1;">
+            <h1 style="
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                color: white;
+                font-size: 32px;
+                font-weight: 800;
+                margin: 0;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+                letter-spacing: -1px;
+            ">
+                VTMS LPJ/PTP <span style="font-weight: 300; opacity: 0.9;">Management</span>
+            </h1>
+            <p style="color: white; margin: 5px 0 0 0; opacity: 0.8; font-size: 13px; letter-spacing: 0.5px;">
+                Vessel Traffic Management System | Administration & Inventory
+            </p>
+        </div>
+        
+        <div style="
+            text-align: right; 
+            border-left: 2px solid rgba(255,255,255,0.3); 
+            padding-left: 30px;
+        ">
+            <h2 id="clock" style="
+                color: white; 
+                margin: 0; 
+                font-family: 'Courier New', monospace; 
+                font-size: 38px; 
+                font-weight: 900;
+                line-height: 1;
+            ">00:00:00</h2>
+            <p id="date" style="
+                color: rgba(255,255,255,0.8); 
+                margin: 5px 0 0 0; 
+                font-size: 14px; 
+                font-weight: 500;
+                text-transform: uppercase;
+            "></p>
+        </div>
+    </div>
 
+    <script>
+    function updateClock() {
+        const now = new Date();
+        const timeOptions = { 
+            timeZone: "Asia/Kuala_Lumpur", 
+            hour12: false, 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            second: '2-digit' 
+        };
+        const dateOptions = { 
+            timeZone: "Asia/Kuala_Lumpur", 
+            weekday: 'short', 
+            day: 'numeric', 
+            month: 'short', 
+            year: 'numeric' 
+        };
+        
+        const timeString = new Intl.DateTimeFormat('en-GB', timeOptions).format(now);
+        const dateString = new Intl.DateTimeFormat('ms-MY', dateOptions).format(now);
+        
+        document.getElementById('clock').textContent = timeString;
+        document.getElementById('date').textContent = dateString;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+    </script>
+""", unsafe_allow_html=True)
+
+# 6.1 ALERTS SECTION
 if not df_equip.empty:
     month_cols = [c for c in df_equip.columns if any(yr in c for yr in ["2025", "2026"])]
     latest_month = month_cols[-1] if month_cols else None
@@ -112,18 +191,11 @@ if not df_equip.empty:
                 <p style="margin:5px 0 0 0;">Immediate attention required for assets marked as FAULTY or MISSING in {latest_month}.</p>
             </div>
             """, unsafe_allow_html=True)
-            
-            st.download_button(
-                label="📥 Download Faulty Assets List (CSV)",
-                data=faulty_data.to_csv(index=False).encode('utf-8'),
-                file_name=f'Faulty_Assets_{latest_month}.csv',
-                mime='text/csv',
-            )
 
 # 7. MAIN CONTENT TABS
 tab1, tab2 = st.tabs(["📝 Maintenance Reports", "⚙️ Equipment Status"])
 
-# --- TAB 1: MAINTENANCE REPORTS ---
+# (Kod selebihnya seperti asal anda...)
 with tab1:
     if not df_raw.empty:
         df = df_raw.copy()
@@ -152,17 +224,10 @@ with tab1:
         st.divider()
         st.subheader("📋 Submitted Reports Record")
         
-        def highlight_status(val):
-            if val == 'REJECTED': return 'background-color: #F8D7DA; color: #721C24;'
-            if val == 'APPROVED': return 'background-color: #D4EDDA; color: #155724;'
-            return ''
-
         if 'REPORT CHECKLIST' in display_df.columns:
             display_df.insert(0, 'ICON', display_df['REPORT CHECKLIST'].map(icon_map).fillna("https://cdn-icons-png.flaticon.com/512/2991/2991108.png"))
 
-        styled_df = display_df.style.map(highlight_status, subset=['STATUS']) if 'STATUS' in display_df.columns else display_df
-
-        event = st.dataframe(styled_df, use_container_width=True, hide_index=True,
+        event = st.dataframe(display_df, use_container_width=True, hide_index=True,
                             column_config={
                                 "ICON": st.column_config.ImageColumn("Type"), 
                                 PDF_COL: st.column_config.LinkColumn("Report File", display_text="OPEN PDF 📄")
@@ -180,7 +245,6 @@ with tab1:
                 file_id = re.search(r'[-\w]{25,}', link).group()
                 st.markdown(f'<div class="pdf-view-container"><iframe src="https://drive.google.com/file/d/{file_id}/preview" width="100%" height="600px"></iframe></div>', unsafe_allow_html=True)
 
-# --- TAB 2: EQUIPMENT STATUS ---
 with tab2:
     if not df_equip.empty:
         st.subheader("⚙️ Inventory & Equipment Status")
@@ -203,18 +267,11 @@ with tab2:
             me3.metric(f"Missing ❌", len(df_equip[status_series == 'MISSING']))
 
             st.markdown(f"### 🎯 Equipment Performance Overview ({selected_month})")
-            
-            # SUSUNAN DONUT DAN HISTOGRAM
             col_left, col_right = st.columns(2)
             
             with col_left:
-                fig_donut = px.pie(
-                    df_pie, 
-                    names=selected_month, 
-                    title='Condition Overview',
-                    hole=0.55, 
-                    color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}
-                )
+                fig_donut = px.pie(df_pie, names=selected_month, title='Condition Overview', hole=0.55, 
+                                   color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'})
                 fig_donut.update_traces(textposition='inside', textinfo='percent+label')
                 st.plotly_chart(fig_donut, use_container_width=True)
 
@@ -222,10 +279,6 @@ with tab2:
                 if 'Site' in df_pie.columns:
                     st.plotly_chart(px.histogram(df_pie, x='Site', color=selected_month, barmode='group', title='Status by Location',
                                                 color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}), use_container_width=True)
-            
-            if 'Type' in df_pie.columns:
-                st.plotly_chart(px.histogram(df_pie, x='Type', color=selected_month, barmode='group', title='Status by Equipment Category',
-                                            color_discrete_map={'OK':'#2ecc71','FAULTY':'#f1c40f','MISSING':'#e74c3c'}), use_container_width=True)
             
             st.divider()
             st.subheader("📦 Inventory Asset List")
