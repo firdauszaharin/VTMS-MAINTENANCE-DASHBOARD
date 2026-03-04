@@ -23,7 +23,7 @@ st.markdown("""
     <style>
     /* Latar belakang utama */
     .stApp {
-        background: #f8faff;
+        background: #243447;
         font-family: 'Inter', sans-serif;
     }
 
@@ -320,6 +320,7 @@ with tab2:
                 df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
 
             st.dataframe(df_eq_show.style.map(lambda x: 'background-color: #D4EDDA' if x=='OK' else ('background-color: #F8D7DA' if x=='MISSING' else ('background-color: #FFF3CD' if x=='FAULTY' else '')), subset=[selected_month]), use_container_width=True, hide_index=True)
+
 
 
 
