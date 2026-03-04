@@ -94,31 +94,6 @@ with st.sidebar:
     st.divider()
     st.link_button("📂 Open Drive Folder", "https://drive.google.com/drive/folders/1lG9eKZ69hpT6q-aqXpNxyd0HMcXdr3A4jUaXLCpDpOPffFzG0XK-MGBLaGHcBMcyqWjyLy", use_container_width=True)
 
-# 6. EXECUTIVE SUMMARY
-st.markdown("""
-    <div style="
-        background: linear-gradient(90deg, #0984E3, #6c5ce7);
-        padding: 20px;
-        border-radius: 15px;
-        margin-bottom: 25px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    ">
-        <h1 style="
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: white;
-            font-size: 40px;
-            font-weight: 800;
-            margin: 0;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-            letter-spacing: -1px;
-        ">
-             VTMS LPJ/PTP <span style="font-weight: 300; opacity: 0.9;">Management Dashboard</span>
-        </h1>
-        <p style="color: white; margin: 5px 0 0 0; opacity: 0.8; font-size: 14px;">
-            Vessel Traffic Management System | Administration & Asset Inventory Control
-        </p>
-    </div>
-""", unsafe_allow_html=True)
 # --- 6. EXECUTIVE SUMMARY (WITH INTEGRATED LIVE CLOCK) ---
 st.markdown("""
     <div style="
@@ -199,28 +174,6 @@ st.markdown("""
     updateClock();
     </script>
 """, unsafe_allow_html=True)
-if not df_equip.empty:
-    month_cols = [c for c in df_equip.columns if any(yr in c for yr in ["2025", "2026"])]
-    latest_month = month_cols[-1] if month_cols else None
-    
-    if latest_month:
-        status_check = df_equip[latest_month].astype(str).str.strip().str.upper()
-        faulty_data = df_equip[status_check.isin(['FAULTY', 'MISSING'])]
-        
-        if len(faulty_data) > 0:
-            st.markdown(f"""
-            <div class="alert-box">
-                <h4 style="margin:0; color:#FF4B4B;">⚠️ SYSTEM ALERT: {len(faulty_data)} ISSUES DETECTED</h4>
-                <p style="margin:5px 0 0 0;">Immediate attention required for assets marked as FAULTY or MISSING in {latest_month}.</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.download_button(
-                label="📥 Download Faulty Assets List (CSV)",
-                data=faulty_data.to_csv(index=False).encode('utf-8'),
-                file_name=f'Faulty_Assets_{latest_month}.csv',
-                mime='text/csv',
-            )
 
 # 7. MAIN CONTENT TABS
 tab1, tab2 = st.tabs(["📝 Maintenance Reports", "⚙️ Equipment Status"])
@@ -339,6 +292,7 @@ with tab2:
                 df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
 
             st.dataframe(df_eq_show.style.map(lambda x: 'background-color: #D4EDDA' if x=='OK' else ('background-color: #F8D7DA' if x=='MISSING' else ('background-color: #FFF3CD' if x=='FAULTY' else '')), subset=[selected_month]), use_container_width=True, hide_index=True)
+
 
 
 
