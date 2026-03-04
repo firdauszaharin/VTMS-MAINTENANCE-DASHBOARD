@@ -159,12 +159,67 @@ if not df_equip.empty:
         faulty_data = df_equip[status_check.isin(['FAULTY', 'MISSING'])]
         
         if len(faulty_data) > 0:
-            st.markdown(f"""
-            <div class="alert-box">
-                <h4 style="margin:0; color:#FF4B4B;">⚠️ SYSTEM ALERT: {len(faulty_data)} ISSUES DETECTED</h4>
-                <p style="margin:5px 0 0 0;">Immediate attention required for assets marked as FAULTY or MISSING in {latest_month}.</p>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown("""
+    <div style="
+        background: linear-gradient(90deg, #0984E3, #6c5ce7);
+        padding: 30px;
+        border-radius: 20px;
+        margin-bottom: 25px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    ">
+        <div style="display: flex; flex-direction: column; align-items: flex-start;">
+            <div style="margin-bottom: 15px;">
+                <img src="https://lh3.googleusercontent.com/d/1lG9eKZ69hpT6q-aqXpNxyd0HMcXdr3A" 
+                     style="height: 60px; filter: brightness(0) invert(1);"> 
+                </div>
+            
+            <h1 style="
+                color: white;
+                font-size: 30px;
+                font-weight: 800;
+                margin: 0;
+                letter-spacing: -1px;
+                line-height: 1.1;
+            ">
+                EDM VTMS LPJ/PTP<br>
+                <span style="font-weight: 300; opacity: 0.8; font-size: 20px;">Management Dashboard</span>
+            </h1>
+        </div>
+
+        <div style="text-align: right; border-left: 2px solid rgba(255,255,255,0.2); padding-left: 30px;">
+            <h2 id="clock" style="
+                color: white; 
+                margin: 0; 
+                font-family: 'Courier New', monospace; 
+                font-size: 45px; 
+                font-weight: 900;
+            ">00:00:00</h2>
+            <p id="date" style="
+                color: rgba(255,255,255,0.8); 
+                margin: 5px 0 0 0; 
+                font-size: 14px; 
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            "></p>
+        </div>
+    </div>
+
+    <script>
+    function updateClock() {
+        const now = new Date();
+        const tOpt = { timeZone: "Asia/Kuala_Lumpur", hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' };
+        const dOpt = { timeZone: "Asia/Kuala_Lumpur", weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' };
+        
+        document.getElementById('clock').textContent = new Intl.DateTimeFormat('en-GB', tOpt).format(now);
+        document.getElementById('date').textContent = new Intl.DateTimeFormat('ms-MY', dOpt).format(now);
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+    </script>
+""", unsafe_allow_html=True)
             
             st.download_button(
                 label="📥 Download Faulty Assets List (CSV)",
@@ -290,6 +345,7 @@ with tab2:
                 df_eq_show = df_eq_show[df_eq_show.astype(str).apply(lambda x: x.str.contains(search_eq, case=False)).any(axis=1)]
 
             st.dataframe(df_eq_show.style.map(lambda x: 'background-color: #D4EDDA' if x=='OK' else ('background-color: #F8D7DA' if x=='MISSING' else ('background-color: #FFF3CD' if x=='FAULTY' else '')), subset=[selected_month]), use_container_width=True, hide_index=True)
+
 
 
 
